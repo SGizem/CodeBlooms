@@ -15,17 +15,29 @@ Tüm gereksinimlerinizi çıkardıktan sonra beraber tartışıyoruz ve son gere
 1. **İsimler anlamlı olmalı:** Gereksinim isimleri net ve anlaşılır olmalıdır.
 2. **Açıklamalar net olmalı:** Her gereksinimin açıklaması açık ve anlaşılır şekilde yazılmalıdır.
 3. **Açıklamalar teknik jargon ve kısaltmalar içermemeli:** Gereksinim açıklamaları herkesin anlayabileceği basit bir dille yazılmalıdır.
-4. **Gereksinim isimleri çok uzun olmamalı ve bir eylem bildirmeli:** 
-   - İsimler kısa ve öz olmalıdır
+4. **Gereksinim isimleri çok uzun olmamalı ve bir eylem bildirmeli:** - İsimler kısa ve öz olmalıdır
    - Bir eylem fiili içermelidir
    - Örnekler: "Kayıt Olma", "Giriş Yapma", "Profil Güncelleme", "Hesap Silme"
 
 # Tüm Gereksinimler 
+1. **Kayıt Olma** - `POST` (Sedef Gizem Orulluoğlu)
+2. **Ürün Ekleme** - `POST` (Sedef Gizem Orulluoğlu)
+3. **Ürün Silme** - `DELETE` (Sedef Gizem Orulluoğlu)
+4. **Ürünleri Listeleme** - `GET` (Sedef Gizem Orulluoğlu)
+5. **Sipariş Güncelleme** - `PUT` (Sedef Gizem Orulluoğlu)
+6. **Siparişleri Listeleme** - `GET` (Sedef Gizem Orulluoğlu)
+7. **Ürüne Yorum Ekleme** - `POST` (Sedef Gizem Orulluoğlu)
+8. **Ürün Yorumu Silme** - `DELETE` (Sedef Gizem Orulluoğlu)
+9. **Sepete Ürün Ekleme** - `POST` (Eda Gögebakan)
+10. **Sepetten Ürün Silme** - `DELETE` (Eda Gögebakan)
+11. **Sepet Güncelleme** - `PUT` (Eda Gögebakan)
+12. **Sepet Listeleme** - `GET` (Eda Gögebakan)
+13. **Sipariş Oluşturma** - `POST` (Eda Gögebakan)
+14. **Sipariş İptal Etme** - `DELETE` (Eda Gögebakan)
+15. **Hediye Notu Ekleme** - `POST` (Eda Gögebakan)
+16. **Hediye Notu Silme** - `DELETE` (Eda Gögebakan)
 
-1. **Giriş Yapma** (Ali Tutar)
-2. **Üye Olma** (Ali Tutar)
-3. ..
-4. ..
+
 # Gereksinim Dağılımları
 
 1. [Sedef Gizem Orulluoğlu'nun Gereksinimleri](Sedef-Gizem-Orulluoglu/Sedef-Gizem-Orulluoglu-Gereksinimler.md)
