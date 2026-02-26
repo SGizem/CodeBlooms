@@ -29,4 +29,4 @@ Tüm gereksinimlerinizi çıkardıktan sonra beraber tartışıyoruz ve son gere
 # Gereksinim Dağılımları
 
 1. [Sedef Gizem Orulluoğlu'nun Gereksinimleri](Sedef-Gizem-Orulluoglu/Sedef-Gizem-Orulluoglu-Gereksinimler.md)
-2. [Eda Gögebakan'ın Gereksinimleri](Grup-Uyesi-2/Grup-Uyesi-2-Gereksinimler.md)
+2. [Eda Gögebakan'ın Gereksinimleri](Eda-Gogebakan/Eda-Gogebakan-Gereksinimler.md)
