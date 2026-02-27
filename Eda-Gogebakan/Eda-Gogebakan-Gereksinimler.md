@@ -27,7 +27,7 @@
 * **Açıklama:** Sepetteki ürünlerin satın alma sürecini başlatır. Adres ve ödeme bilgileri onaylandıktan sonra sipariş sisteme kaydedilir.
 
 ### 6. Sipariş İptali
-* **API Metodu:** `POST /orders/{orderId}/cancel`
+* **API Metodu:** `DELETE /orders/{orderId}/cancel`
 * **Açıklama:** Henüz kargoya verilmemiş olan siparişlerin kullanıcı tarafından iptal edilmesini sağlar.
 
 ---
