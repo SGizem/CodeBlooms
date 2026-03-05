@@ -1,26 +1,16 @@
-# API Tasarımı - OpenAPI Specification
-
-**OpenAPI Spesifikasyon Dosyası:** [CodeBlooms.yaml](CodeBlooms.yaml)
-
-Bu doküman, OpenAPI Specification (OAS) 3.0.3 standardına ve "Best Practices" kurallarına uygun olarak tasarlanmış CodeBlooms platformunun REST API tasarımını içermektedir.
-
-## OpenAPI Specification
-
-```yaml
 openapi: 3.0.3
 info:
   title: CodeBlooms E-Ticaret REST API
   description: |
     CodeBlooms hediye ve çiçek platformu için geliştirilmiş RESTful API dokümantasyonu.
     
-    Hocamızın belirttiği "Best Practices" kurallarına (SemVer, JWT, operationId, ref, date-time, nullable vb.) uygun olarak tasarlanmıştır.
   version: 1.0.0
   contact:
     name: CodeBlooms Ekibi (Sedef Gizem & Eda)
     email: destek@codeblooms.com
 
 servers:
-  - url: [https://api.codeblooms.com](https://api.codeblooms.com)
+  - url: https://api.codeblooms.com
     description: Üretim (Production) Sunucusu
   - url: http://localhost:3000
     description: Yerel Geliştirme (Local) Sunucusu
@@ -512,7 +502,7 @@ components:
         imageUrl:
           type: string
           nullable: true
-          example: "[https://site.com/image.jpg](https://site.com/image.jpg)"
+          example: "https://site.com/image.jpg"
 
     Product:
       type: object
