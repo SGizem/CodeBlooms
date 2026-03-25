@@ -1,12 +1,17 @@
 /* global module:readonly */
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
+  content: ["./src/*/.{js,jsx}"],
   theme: {
     extend: {
+      colors: {
+        bordo: '#7B1C3E',
+        krem: '#F5F0E8',
+        bej: '#EDE8DE',
+      },
       fontFamily: {
-        heading: ['"Playfair Display"', 'serif'],
-        body: ['Inter', 'sans-serif'],
+        display: ['"Cormorant Garamond"', 'serif'],
+        body: ['"Jost"', 'sans-serif'],
       },
     },
   },
