@@ -4,6 +4,37 @@ function img(photoId, w = 1100) {
   return `${IMG_BASE}/${photoId}?auto=format&fit=crop&w=${w}&q=80`
 }
 
+// Named featured products for the homepage
+const featuredRoses = {
+  id: 1,
+  name: 'Kırmızı Güller Buketi',
+  price: 450,
+  originalPrice: 500,
+  category: 'Güller',
+  description: 'Güllerin zarafetiyle hazırlanan bu özel buket. Özenle hazırlanır, taze görünümünü korur ve sevdiklerinize iyi dilekler taşır.',
+  image: img('photo-1548460268-1f9e6a2b8d11'),
+}
+
+const featuredDaisy = {
+  id: 31,
+  name: 'Bahar Papatya Buketi',
+  price: 280,
+  originalPrice: 350,
+  category: 'Papatyalar',
+  description: 'Sadelik ve ferahlığı bir araya getiren papatya dokunuşu. Özenle hazırlanır, taze görünümünü korur ve sevdiklerinize iyi dilekler taşır.',
+  image: img('photo-1490750967868-88df5691cc9e'),
+}
+
+const featuredOrchid = {
+  id: 61,
+  name: 'Pembe Orkide Buketi',
+  price: 520,
+  originalPrice: 600,
+  category: 'Orkideler',
+  description: 'Orkidelerin şıklığını taşıyan, hediye değeri yüksek buket. Özenle hazırlanır, taze görünümünü korur ve sevdiklerinize iyi dilekler taşır.',
+  image: img('photo-1596436241601-37f5f1b3e3e6'),
+}
+
 function makeCategoryProducts({
   category,
   namePrefix,
@@ -13,9 +44,14 @@ function makeCategoryProducts({
   priceBase,
   priceSpread,
   descriptionLead,
+  skipFirst,
 }) {
   return Array.from({ length: count }).map((_, idx) => {
     const id = startId + idx
+
+    // For the first items that have named featured equivalents, use those
+    if (skipFirst && idx === 0) return null
+
     const image = images[idx % images.length]
     const price = priceBase + ((idx % 10) * priceSpread)
     const hasDiscount = idx % 6 === 0
@@ -33,18 +69,22 @@ function makeCategoryProducts({
       description: `${descriptionLead}. Özenle hazırlanır, taze görünümünü korur ve sevdiklerinize iyi dilekler taşır.`,
       image: img(image),
     }
-  })
+  }).filter(Boolean)
 }
 
-// Not: Görseller doğrudan images.unsplash.com üzerinden (yerel dosya yolu yok).
-// Her kategori için en az 30 ürün üretilir.
 export const mockFlowers = [
-  // Güller (rose)
+  // Named featured products first
+  featuredRoses,
+  featuredDaisy,
+  featuredOrchid,
+
+  // Güller (roses) — skip first since featured
   ...makeCategoryProducts({
     category: 'Güller',
     namePrefix: 'Gül Buketi',
     startId: 1,
     count: 30,
+    skipFirst: true,
     images: [
       'photo-1548460268-1f9e6a2b8d11',
       'photo-1644248423203-80e317d78aee',
@@ -56,12 +96,13 @@ export const mockFlowers = [
     descriptionLead: 'Güllerin zarafetiyle hazırlanan bu özel buket',
   }),
 
-  // Papatyalar (daisy)
+  // Papatyalar (daisies) — skip first since featured
   ...makeCategoryProducts({
     category: 'Papatyalar',
     namePrefix: 'Papatya Buketi',
     startId: 31,
     count: 30,
+    skipFirst: true,
     images: [
       'photo-1490750967868-88df5691cc9e',
       'photo-1713885248286-64e3839bfb48',
@@ -73,12 +114,13 @@ export const mockFlowers = [
     descriptionLead: 'Sadelik ve ferahlığı bir araya getiren papatya dokunuşu',
   }),
 
-  // Orkideler (orchid)
+  // Orkideler (orchids) — skip first since featured
   ...makeCategoryProducts({
     category: 'Orkideler',
     namePrefix: 'Orkide Buketi',
     startId: 61,
     count: 30,
+    skipFirst: true,
     images: [
       'photo-1596436241601-37f5f1b3e3e6',
       'photo-1758635591755-f9e08cb4c34e',
@@ -90,7 +132,7 @@ export const mockFlowers = [
     descriptionLead: 'Orkidelerin şıklığını taşıyan, hediye değeri yüksek buket',
   }),
 
-  // Lilyumlar (lily)
+  // Lilyumlar (lilies)
   ...makeCategoryProducts({
     category: 'Lilyumlar',
     namePrefix: 'Lilyum Buketi',
@@ -106,7 +148,7 @@ export const mockFlowers = [
     descriptionLead: 'Zarif lilyumların zarafetini yansıtan özel buket',
   }),
 
-  // Teraryumlar (teraryum)
+  // Teraryumlar
   ...makeCategoryProducts({
     category: 'Teraryumlar',
     namePrefix: 'Teraryum',
@@ -121,4 +163,3 @@ export const mockFlowers = [
     descriptionLead: 'Modern dekorla uyumlu, uzun ömürlü teraryum seçkisi',
   }),
 ]
-

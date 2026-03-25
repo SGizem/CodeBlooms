@@ -26,24 +26,20 @@
   --heading: "Cormorant Garamond", serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
+  font: 16px/155% var(--sans);
+  letter-spacing: 0.01em;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
+/* Force light mode always */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Proje boyunca daima açık/soft tema kullanıyoruz. */
     --text: #1a1a1a;
     --text-h: #1a1a1a;
     --bg: #f5f0e8;
@@ -56,15 +52,20 @@
     --shadow:
       rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
   }
+}
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   background: var(--bg);
+  overflow-x: hidden;
 }
 
 #root {
@@ -79,36 +80,43 @@ body {
   box-sizing: border-box;
 }
 
+/* Typography */
 h1,
-h2 {
+h2,
+h3 {
   font-family: var(--heading);
   font-weight: 500;
   color: var(--text-h);
   margin: 0;
+  line-height: 1.2;
 }
 
-h1 {
-  letter-spacing: inherit;
+h1 { letter-spacing: -0.01em; }
+h2 { letter-spacing: -0.005em; }
+p { margin: 0; }
+
+/* Selection */
+::selection {
+  background: rgba(123, 28, 62, 0.15);
+  color: var(--text);
 }
 
-h2 {
-  letter-spacing: inherit;
-}
-p {
-  margin: 0;
+/* Smooth image loading */
+img {
+  image-rendering: auto;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+/* Scrollbar (subtle custom) */
+::-webkit-scrollbar {
+  width: 6px;
 }
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(123, 28, 62, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(123, 28, 62, 0.35);
 }
