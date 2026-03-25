@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -9,6 +10,9 @@ export default function RegisterPage() {
     confirmPassword: '',
   })
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const { register } = useAuth()
+  const navigate = useNavigate()
 
   function update(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -17,13 +21,27 @@ export default function RegisterPage() {
   function onSubmit(e) {
     e.preventDefault()
     setError('')
+    setSuccess('')
 
     if (form.password !== form.confirmPassword) {
       setError('Şifreler eşleşmiyor.')
       return
     }
 
-    // Mock: gerçek API entegrasyonu sonraki aşamada.
+    const res = register({
+      fullName: form.fullName,
+      email: form.email,
+      password: form.password,
+    })
+
+    if (!res.ok) {
+      setError(res.error || 'Kayıt başarısız.')
+      return
+    }
+
+    setSuccess('Kayıt başarılı! Giriş yapabilirsiniz.')
+    // Kullanıcı deneyimi: kısa gecikme sonrası login'e yönlendir.
+    window.setTimeout(() => navigate('/login'), 1200)
   }
 
   return (
@@ -31,9 +49,7 @@ export default function RegisterPage() {
       <div className="mx-auto flex min-h-[calc(100svh-160px)] max-w-md items-center px-4 py-12">
         <div className="w-full rounded-lg bg-white shadow-lg text-left">
           <div className="px-6 py-8">
-            <h1 className="font-display text-3xl font-bold text-bordo">
-              Kayıt Ol
-            </h1>
+            <h1 className="font-display text-3xl font-bold text-bordo">Kullanıcı Kaydı</h1>
 
             <form className="mt-6 space-y-4" onSubmit={onSubmit}>
               <div>
@@ -95,6 +111,12 @@ export default function RegisterPage() {
               {error ? (
                 <div className="rounded-md border border-red-500/20 bg-red-500/5 px-4 py-3 font-body text-sm text-red-700">
                   {error}
+                </div>
+              ) : null}
+
+              {success ? (
+                <div className="rounded-md border border-green-500/20 bg-green-500/5 px-4 py-3 font-body text-sm text-green-700">
+                  {success}
                 </div>
               ) : null}
 

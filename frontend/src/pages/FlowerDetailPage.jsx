@@ -1,7 +1,8 @@
 import { useContext, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { CartContext } from '../context/CartContext'
-import { mockFlowers } from '../data/mockFlowers'
+import { useProducts } from '../context/ProductsContext'
+import CommentsSection from '../components/CommentsSection'
 
 function AccordionItem({ title, children }) {
   const [open, setOpen] = useState(false)
@@ -25,11 +26,12 @@ function AccordionItem({ title, children }) {
 export default function FlowerDetailPage() {
   const { id } = useParams()
   const cart = useContext(CartContext)
+  const { productById } = useProducts()
   const flowerId = Number(id)
 
   const flower = useMemo(() => {
-    return mockFlowers.find((f) => f.id === flowerId) ?? null
-  }, [flowerId])
+    return productById.get(flowerId) ?? null
+  }, [flowerId, productById])
 
   const hasDiscount = !!flower?.originalPrice && flower.originalPrice > flower.price
   const [qty, setQty] = useState(1)
@@ -137,9 +139,9 @@ export default function FlowerDetailPage() {
 
         <div className="mt-10 space-y-4 md:space-y-5">
           <AccordionItem title="Ürün Bilgisi">
-            Doğal tonları ve özenle seçilmiş çiçekleriyle bu buket, her
-            mevsimde zarif bir dokunuş sunar. Renkler ve form, gönderim
-            boyunca tazeliği koruyacak şekilde hazırlanır.
+            {flower.description
+              ? flower.description
+              : 'Doğal tonları ve özenle seçilmiş çiçekleriyle bu buket, her mevsimde zarif bir dokunuş sunar.'}
           </AccordionItem>
           <AccordionItem title="İade Politikası">
             Ürün tesliminden itibaren 14 gün içinde iade talebi
@@ -147,6 +149,8 @@ export default function FlowerDetailPage() {
             lütfen destek ekibimizle iletişime geçin.
           </AccordionItem>
         </div>
+
+        <CommentsSection productId={flower.id} />
       </div>
     </div>
   )

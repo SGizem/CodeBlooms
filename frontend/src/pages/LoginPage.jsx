@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
   const [form, setForm] = useState({
@@ -7,14 +8,23 @@ export default function LoginPage() {
     password: '',
   })
   const [error, setError] = useState('')
+  const { login } = useAuth()
+  const navigate = useNavigate()
 
   function onSubmit(e) {
     e.preventDefault()
     setError('')
-    // Mock: gerçek API entegrasyonu sonraki aşamada.
     if (!form.email || !form.password) {
       setError('Lütfen tüm alanları doldurun.')
+      return
     }
+
+    const res = login(form)
+    if (!res.ok) {
+      setError(res.error || 'Giriş başarısız.')
+      return
+    }
+    navigate('/flowers')
   }
 
   return (

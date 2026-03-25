@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { mockOrders } from '../data/mockOrders'
+import { useOrders } from '../context/OrdersContext'
 
 function statusStyles(status) {
   const normalized = String(status).toLowerCase()
@@ -16,7 +16,7 @@ function statusStyles(status) {
 }
 
 export default function OrdersPage() {
-  const orders = mockOrders
+  const { orders } = useOrders()
 
   return (
     <div className="w-full">
@@ -71,7 +71,9 @@ export default function OrdersPage() {
                     <span className="font-semibold">Ürünler:</span>
                     <ul className="mt-2 list-disc space-y-1 pl-5">
                       {order.items.map((item, idx) => (
-                        <li key={`${order.id}-${idx}`}>{item}</li>
+                        <li key={`${order.id}-${idx}`}>
+                          {item.name} x{item.qty}
+                        </li>
                       ))}
                     </ul>
                   </div>
