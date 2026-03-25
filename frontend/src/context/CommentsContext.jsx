@@ -13,6 +13,7 @@ function normalizeComment(raw) {
     productId,
     authorName: String(raw.authorName ?? '').trim(),
     text: String(raw.text ?? '').trim(),
+    rating: Number(raw.rating) || 0,
     createdAt: String(raw.createdAt ?? ''),
   }
 }
@@ -57,17 +58,18 @@ export function CommentsProvider({ children }) {
     return map
   }, [comments])
 
-  function addComment(productId, { authorName, text }) {
+  function addComment(productId, { authorName, text, rating }) {
     const pid = Number(productId)
     const author = String(authorName ?? '').trim()
     const body = String(text ?? '').trim()
+    const stars = Number(rating) || 0
     if (!pid || !author || !body) return { ok: false, error: 'Lütfen tüm alanları doldurun.' }
     if (body.length < 3) return { ok: false, error: 'Yorum en az 3 karakter olmalı.' }
     if (body.length > 400) return { ok: false, error: 'Yorum en fazla 400 karakter olmalı.' }
 
     const createdAt = new Date().toISOString().slice(0, 10)
     const id = `CO${String(Date.now()).slice(-7)}`
-    const comment = { id, productId: pid, authorName: author, text: body, createdAt }
+    const comment = { id, productId: pid, authorName: author, text: body, rating: stars, createdAt }
     setComments((prev) => [comment, ...prev])
     return { ok: true, id }
   }

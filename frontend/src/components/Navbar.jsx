@@ -9,13 +9,14 @@ export default function Navbar({ cartCount = 0 }) {
   const categories = useMemo(
     () => [
       { label: 'Güller', to: '/flowers?category=Güller' },
-      { label: 'Papatyalar', to: '/flowers?category=Papatyalar' },
       { label: 'Orkideler', to: '/flowers?category=Orkideler' },
+      { label: 'Papatyalar', to: '/flowers?category=Papatyalar' },
       { label: 'Lilyumlar', to: '/flowers?category=Lilyumlar' },
-      { label: 'Teraryumlar', to: '/flowers?category=Teraryumlar' },
+      { label: 'Çikolatalar', to: '/flowers?category=Çikolatalar' },
     ],
     []
   )
+
 
   useEffect(() => {
     function onDocClick(e) {

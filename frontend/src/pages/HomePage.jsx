@@ -5,17 +5,17 @@ import FlowerCard from '../components/FlowerCard'
 import { CartContext } from '../context/CartContext'
 import { useProducts } from '../context/ProductsContext'
 
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1487530811015-780780b58c25?w=1920&q=80'
+
 export default function HomePage() {
   const cart = useContext(CartContext)
   const { products } = useProducts()
-
-  // Pick the 3 named featured products (first 3 in the array)
   const featured = products.slice(0, 3)
 
   return (
     <div className="w-full">
       {/* ===== HERO SECTION ===== */}
-      <section className="relative min-h-[100svh] overflow-hidden" id="hero-section">
+      <section className="relative min-h-screen overflow-hidden" id="hero-section">
         <style>{`
           @keyframes heroZoom {
             0% { transform: scale(1); }
@@ -26,10 +26,6 @@ export default function HomePage() {
             from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
           }
-          @keyframes shimmer {
-            0% { background-position: -200% center; }
-            100% { background-position: 200% center; }
-          }
         `}</style>
 
         {/* Background image */}
@@ -39,28 +35,32 @@ export default function HomePage() {
           aria-hidden="true"
           className="absolute inset-0 h-full w-full object-cover"
           style={{ animation: 'heroZoom 20s ease-in-out infinite' }}
+          onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_IMG }}
         />
 
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/25 to-black/50" />
+        {/* Dark overlay — CRITICAL for text legibility */}
+        <div className="absolute inset-0 bg-black/50 z-0"></div>
 
-        {/* Content */}
-        <div className="relative mx-auto flex min-h-[100svh] max-w-5xl flex-col items-center justify-center px-6 text-center">
+        {/* Content — z-10 required to appear above overlay */}
+        <div className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-6 text-center">
           <div style={{ animation: 'fadeUp 1s ease-out' }}>
             {/* Subtitle */}
-            <p className="mb-4 font-body text-xs font-light uppercase tracking-[0.35em] text-white/70 sm:text-sm">
+            <p className="mb-4 font-body text-xs font-light uppercase tracking-[0.35em] text-white/85 sm:text-sm">
               Taze Çiçekler & Zarif Hediyeler
             </p>
 
-            {/* Main heading */}
-            <h1 className="font-display text-5xl font-semibold leading-[1.1] text-white drop-shadow-md sm:text-7xl lg:text-8xl">
+            {/* Main heading — ALWAYS WHITE */}
+            <h1
+              className="text-white relative z-10 font-display text-5xl font-semibold leading-[1.1] drop-shadow-lg sm:text-7xl lg:text-8xl"
+              style={{ color: 'white' }}
+            >
               Çiçeklerle
               <br />
               <span className="italic">Mutluluk</span> Taşıyın
             </h1>
 
-            {/* Description */}
-            <p className="mx-auto mt-6 max-w-lg font-body text-base font-light leading-relaxed text-white/80 sm:text-lg">
+            {/* Description — WHITE */}
+            <p className="mx-auto mt-6 max-w-lg font-body text-base font-light leading-relaxed text-white/85 sm:text-lg">
               Özenle hazırlanan buketlerimiz, sevdiklerinize en güzel şekilde ulaşsın.
               Aynı gün teslimat ile anları özel kılın.
             </p>
@@ -69,7 +69,7 @@ export default function HomePage() {
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
               <Link
                 to="/flowers"
-                className="group inline-flex items-center gap-2.5 rounded-full bg-white px-8 py-3.5 font-body text-sm font-semibold text-bordo shadow-xl shadow-black/10 transition-all duration-300 hover:bg-bordo hover:text-white hover:shadow-2xl"
+                className="group inline-flex items-center gap-2.5 rounded-full bg-white px-8 py-3.5 font-body text-sm font-semibold text-bordo shadow-xl shadow-black/10 transition-all duration-300 hover:bg-bordo hover:text-white hover:shadow-2xl active:scale-95"
                 id="hero-cta-primary"
               >
                 Çiçekleri Keşfet
@@ -77,7 +77,7 @@ export default function HomePage() {
               </Link>
               <Link
                 to="/orders"
-                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-8 py-3.5 font-body text-sm font-medium text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20"
+                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-8 py-3.5 font-body text-sm font-medium text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 active:scale-95"
                 id="hero-cta-secondary"
               >
                 Siparişlerim
@@ -90,9 +90,30 @@ export default function HomePage() {
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-krem to-transparent" />
       </section>
 
+      {/* ===== WHY US CARDS ===== */}
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8" id="why-us-section">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+          {[
+            { icon: '🌸', title: 'Seçim Süreci', desc: 'Her çiçek, uzman floristlerimiz tarafından özenle seçilir ve taze tutulur.' },
+            { icon: '🚀', title: 'Hızlı Teslimat', desc: 'Aynı gün teslimat garantisiyle sevdiklerinize zamanında ulaşın.' },
+            { icon: '💖', title: 'Müşteri Memnuniyeti', desc: '%100 memnuniyet garantisi. Beğenmediğiniz ürünü değiştiriyoruz.' },
+          ].map((item, i) => (
+            <div
+              key={i}
+              className="group flex flex-col items-center rounded-2xl border border-[#EDE8DE] bg-white p-8 text-center shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-[#7B1C3E]/15 cursor-pointer"
+            >
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#F5F0E8] text-3xl transition-transform duration-300 group-hover:scale-110">
+                {item.icon}
+              </div>
+              <h3 className="font-display text-xl font-semibold text-[#1A1A1A]">{item.title}</h3>
+              <p className="mt-3 font-body text-sm leading-relaxed text-[#1A1A1A]/70">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ===== FEATURED PRODUCTS ===== */}
       <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8" id="featured-section">
-        {/* Section heading */}
         <div className="mb-14 text-center">
           <div className="mb-3 flex items-center justify-center gap-2">
             <Sparkles className="h-4 w-4 text-bordo/60" strokeWidth={1.5} />
@@ -107,18 +128,17 @@ export default function HomePage() {
           <div className="mx-auto mt-4 h-px w-16 bg-bordo/30" />
         </div>
 
-        {/* 3-column product grid */}
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3" id="featured-grid">
           {featured.map((flower) => (
-            <FlowerCard
-              key={flower.id}
-              {...flower}
-              onAddToCart={(fId) => cart.addToCart(fId, 1)}
-            />
+            <Link key={flower.id} to={`/flowers/${flower.id}`} className="block">
+              <FlowerCard
+                {...flower}
+                onAddToCart={(fId) => cart.addToCart(fId, 1)}
+              />
+            </Link>
           ))}
         </div>
 
-        {/* View all link */}
         <div className="mt-14 text-center">
           <Link
             to="/flowers"
@@ -142,7 +162,7 @@ export default function HomePage() {
           </h2>
           <Link
             to="/flowers"
-            className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-7 py-3 font-body text-sm font-medium text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20"
+            className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-7 py-3 font-body text-sm font-medium text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 active:scale-95"
             id="promo-cta"
           >
             Fırsatları Keşfet

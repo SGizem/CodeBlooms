@@ -1,12 +1,34 @@
 import { useMemo, useState } from 'react'
 import { useComments } from '../context/CommentsContext'
 
+function StarRating({ rating, onRate, readonly = false }) {
+  const [hovered, setHovered] = useState(0)
+  return (
+    <div className="flex items-center gap-1" aria-label={`Puan: ${rating} / 5`}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          disabled={readonly}
+          onClick={() => !readonly && onRate && onRate(star)}
+          onMouseEnter={() => !readonly && setHovered(star)}
+          onMouseLeave={() => !readonly && setHovered(0)}
+          className={`text-xl leading-none transition-transform duration-100 ${readonly ? 'cursor-default' : 'cursor-pointer hover:scale-125'}`}
+          aria-label={`${star} yıldız`}
+        >
+          {star <= (hovered || rating) ? '⭐' : '☆'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function CommentsSection({ productId }) {
   const { commentsByProductId, addComment, deleteComment } = useComments()
   const pid = Number(productId)
   const comments = commentsByProductId.get(pid) ?? []
 
-  const [form, setForm] = useState({ authorName: '', text: '' })
+  const [form, setForm] = useState({ authorName: '', text: '', rating: 0 })
   const [error, setError] = useState('')
   const [lastAddedKey, setLastAddedKey] = useState(0)
 
@@ -19,12 +41,16 @@ export default function CommentsSection({ productId }) {
   function onSubmit(e) {
     e.preventDefault()
     setError('')
+    if (form.rating === 0) {
+      setError('Lütfen bir puan seçin.')
+      return
+    }
     const res = addComment(pid, form)
     if (!res.ok) {
       setError(res.error || 'Yorum eklenemedi.')
       return
     }
-    setForm({ authorName: '', text: '' })
+    setForm({ authorName: '', text: '', rating: 0 })
     setLastAddedKey((k) => k + 1)
   }
 
@@ -52,6 +78,11 @@ export default function CommentsSection({ productId }) {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="font-body text-sm font-semibold text-[#1A1A1A]">{c.authorName}</div>
+                    {c.rating > 0 && (
+                      <div className="mt-0.5">
+                        <StarRating rating={c.rating} readonly />
+                      </div>
+                    )}
                     <div className="mt-1 font-body text-xs text-[#1A1A1A]/60">{c.createdAt}</div>
                   </div>
                   <button
@@ -74,6 +105,16 @@ export default function CommentsSection({ productId }) {
           className="mt-6 space-y-4 rounded-md border border-[#1A1A1A]/10 bg-white p-4"
           onSubmit={onSubmit}
         >
+          <div>
+            <label className="font-body text-sm font-semibold text-[#1A1A1A]">Puanınız</label>
+            <div className="mt-2">
+              <StarRating
+                rating={form.rating}
+                onRate={(r) => setForm((p) => ({ ...p, rating: r }))}
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="font-body text-sm font-semibold text-[#1A1A1A]">Ad Soyad</label>
@@ -121,4 +162,3 @@ export default function CommentsSection({ productId }) {
     </section>
   )
 }
-

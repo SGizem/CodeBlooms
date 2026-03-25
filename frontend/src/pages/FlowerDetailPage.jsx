@@ -68,11 +68,12 @@ export default function FlowerDetailPage() {
         </nav>
 
         <div className="mt-8 grid grid-cols-1 gap-10 md:grid-cols-2 md:items-start">
-          <div className="rounded-lg bg-white p-2">
+          <div className="overflow-hidden rounded-xl bg-white">
             <img
               src={flower.image}
               alt={flower.name}
-              className="h-full w-full rounded-md object-cover"
+              className="aspect-square w-full object-cover"
+              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1487530811015-780780b58c25?w=600&q=80' }}
             />
           </div>
 
@@ -125,14 +126,24 @@ export default function FlowerDetailPage() {
             <button
               type="button"
               onClick={() => cart.addToCart(flower.id, qty)}
-              className="w-full rounded-md bg-bordo px-5 py-3 font-body text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+              className="w-full rounded-md bg-bordo px-5 py-3 font-body text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-[#601530] hover:shadow-md active:scale-95"
             >
               Sepete Ekle
             </button>
 
-            <div className="rounded-lg border border-[#1A1A1A]/10 bg-white p-4 font-body text-sm text-[#1A1A1A]">
-              Sevdikleriniz için hazır. Hızlı hazırlanır ve özenle kargoya
-              verilir.
+            <div className="grid grid-cols-2 gap-3 rounded-xl bg-[#F5F0E8] p-4 text-sm">
+              <div className="flex items-center gap-2 font-body text-[#1A1A1A]/70">
+                <span>🌿</span><span>Taze Garanti</span>
+              </div>
+              <div className="flex items-center gap-2 font-body text-[#1A1A1A]/70">
+                <span>📦</span><span>Özel Ambalaj</span>
+              </div>
+              <div className="flex items-center gap-2 font-body text-[#1A1A1A]/70">
+                <span>🚚</span><span>Aynı Gün Teslimat</span>
+              </div>
+              <div className="flex items-center gap-2 font-body text-[#1A1A1A]/70">
+                <span>💌</span><span>Hediye Notu Ekle</span>
+              </div>
             </div>
           </div>
         </div>
