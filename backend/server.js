@@ -3,6 +3,7 @@ const mongoose = require('mongoose')
 const cors     = require('cors')
 require('dotenv').config()
 
+<<<<<<< Updated upstream
 // ── Ortam değişkeni doğrulaması ──────────────────────────────────────
 if (!process.env.MONGO_URI || process.env.MONGO_URI.trim() === '') {
   console.error('\x1b[41m\x1b[37m\x1b[1m')
@@ -10,6 +11,12 @@ if (!process.env.MONGO_URI || process.env.MONGO_URI.trim() === '') {
   console.error(' Lütfen backend/.env dosyasını oluşturun ve MONGO_URI değerini ekleyin. ')
   console.error('\x1b[0m')
   process.exit(1)
+=======
+// ── 1. ORTAM DEĞİŞKENİ KONTROLÜ ──
+if (!process.env.MONGO_URI || process.env.MONGO_URI.trim() === '') {
+  console.error('\x1b[41m\x1b[37m\x1b[1m KRİTİK HATA: .env dosyasında MONGO_URI bulunamadı! \x1b[0m');
+  process.exit(1);
+>>>>>>> Stashed changes
 }
 
 const PORT = process.env.PORT || 5000
@@ -19,6 +26,7 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+<<<<<<< Updated upstream
 // ── MongoDB bağlantısı ───────────────────────────────────────────────
 mongoose
   .connect(process.env.MONGO_URI)
@@ -30,6 +38,13 @@ mongoose
     console.error('  → MONGO_URI değerinizi ve ağ bağlantınızı kontrol edin.')
     process.exit(1)
   })
+=======
+// ── 4. GİZEM'İN ROTALARI (Madde 3) ──
+app.use('/api/users', require('./routes/authRoutes'));
+app.use('/api/products', require('./routes/productRoutes'));
+app.use('/api/orders', require('./routes/orderRoutes')); // 🛠️ EKSİK OLAN DOSYAN EKLENDİ!
+app.use('/api', require('./routes/commentRoutes'));      // 🛠️ ADRES ÇAKIŞMASI DÜZELTİLDİ!
+>>>>>>> Stashed changes
 
 // ── Route'lar ────────────────────────────────────────────────────────
 app.use('/api/users',    require('./routes/authRoutes'))

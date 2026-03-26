@@ -1,5 +1,5 @@
-const express        = require('express')
-const Comment        = require('../models/Comment')
+const express = require('express')
+const Comment = require('../models/Comment')
 const authMiddleware = require('../middleware/authMiddleware')
 
 const router = express.Router()
@@ -19,11 +19,11 @@ router.post('/products/:productId/comments', authMiddleware, async (req, res) =>
     }
 
     const comment = await Comment.create({
-      product:  productId,
-      user:     req.user.id,
+      product: productId,
+      user: req.user.id,
       userName: req.user.firstName,
-      text:     text.trim(),
-      rating:   Number(rating),
+      text: text.trim(),
+      rating: Number(rating),
     })
 
     return res.status(201).json({ comment })
@@ -47,7 +47,7 @@ router.get('/products/:productId/comments', async (req, res) => {
 })
 
 // DELETE /api/comments/:commentId — sadece yorumu yazan silebilir
-router.delete('/:commentId', authMiddleware, async (req, res) => {
+router.delete('/comments/:commentId', authMiddleware, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.commentId)
     if (!comment) {
