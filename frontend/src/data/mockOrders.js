@@ -3,15 +3,15 @@ import { mockFlowers } from './mockData'
 const p = (id) => mockFlowers.find((x) => x.id === id) ?? null
 
 const rose1 = p(1)
-const orchid1 = p(61)
-const ter1 = p(121)
+const choco1 = p(16)
+const lily1 = p(13)
 
 export const mockOrders = [
   {
     id: 'SP001',
     date: '2026-03-20',
     status: 'Kargoda',
-    total: rose1?.price ? rose1.price : 260,
+    total: rose1?.price ? rose1.price : 450,
     items: [
       rose1
         ? {
@@ -23,9 +23,9 @@ export const mockOrders = [
           }
         : null,
     ].filter(Boolean),
-    giftNote: 'Doğum günün kutlu olsun!',
+    giftNote: 'İyi ki doğdun!',
     buyer: {
-      fullName: 'Ayşe Demir',
+      fullName: 'Ayşe Yılmaz',
       email: 'ayse@example.com',
       phone: '+90 555 123 45 67',
       address: 'İstanbul, Kadıköy, Örnek Sk. No:12',
@@ -37,30 +37,30 @@ export const mockOrders = [
     id: 'SP002',
     date: '2026-03-15',
     status: 'Teslim Edildi',
-    total: orchid1 && ter1 ? orchid1.price + ter1.price : 680,
+    total: choco1 && lily1 ? choco1.price + lily1.price : 680,
     items: [
-      orchid1
+      choco1
         ? {
-            productId: orchid1.id,
-            name: orchid1.name,
-            price: orchid1.price,
+            productId: choco1.id,
+            name: choco1.name,
+            price: choco1.price,
             qty: 1,
-            image: orchid1.image,
+            image: choco1.image,
           }
         : null,
-      ter1
+      lily1
         ? {
-            productId: ter1.id,
-            name: ter1.name,
-            price: ter1.price,
+            productId: lily1.id,
+            name: lily1.name,
+            price: lily1.price,
             qty: 1,
-            image: ter1.image,
+            image: lily1.image,
           }
         : null,
     ].filter(Boolean),
     giftNote: null,
     buyer: {
-      fullName: 'Mehmet Yılmaz',
+      fullName: 'Mehmet Demir',
       email: 'mehmet@example.com',
       phone: '+90 555 000 11 22',
       address: 'İstanbul, Beşiktaş, Örnek Cad. No:7',
@@ -69,4 +69,3 @@ export const mockOrders = [
     updatedAt: '2026-03-16',
   },
 ]
-

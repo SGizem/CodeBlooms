@@ -167,14 +167,21 @@ export default function ProductsAdminPage() {
           </div>
           <div>
             <label className="font-body text-sm font-semibold text-[#1A1A1A]">Kategori</label>
-            <input
+            <select
               className="mt-2 w-full rounded-md border border-[#1A1A1A]/15 bg-white px-4 py-3 font-body text-sm outline-none focus:border-bordo"
               value={form.category}
               onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
               required
-              placeholder="Örn: Güller"
-            />
+            >
+              <option value="">Seçin...</option>
+              <option value="Güller">Güller</option>
+              <option value="Orkideler">Orkideler</option>
+              <option value="Papatyalar">Papatyalar</option>
+              <option value="Lilyumlar">Lilyumlar</option>
+              <option value="Çikolatalar">Çikolatalar</option>
+            </select>
           </div>
+
           <div>
             <label className="font-body text-sm font-semibold text-[#1A1A1A]">Görsel URL</label>
             <input

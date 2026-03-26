@@ -44,6 +44,7 @@ function AppLayout() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/admin/products" element={<ProductsAdminPage />} />
+          <Route path="/admin" element={<ProductsAdminPage />} />
           <Route
             path="*"
             element={

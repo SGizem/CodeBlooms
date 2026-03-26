@@ -1,170 +1,137 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ShoppingCart } from 'lucide-react'
+import { ChevronDown, ShoppingCart, User, Truck } from 'lucide-react'
 
 export default function Navbar({ cartCount = 0 }) {
-  const [openMenu, setOpenMenu] = useState(null)
-  const navRef = useRef(null)
+  const [catOpen, setCatOpen] = useState(false)
+  const catRef = useRef(null)
 
-  const menuData = useMemo(
-    () => ({
-      purpose: [
-        { label: 'Doğum Günü', category: 'Güller' },
-        { label: 'Sevgililer Günü', category: 'Orkideler' },
-        { label: 'Anneler Günü', category: 'Lilyumlar' },
-        { label: 'Tebrik & Motivasyon', category: 'Teraryumlar' },
-      ],
-      flowerType: [
-        { label: 'Güller', category: 'Güller' },
-        { label: 'Papatyalar', category: 'Papatyalar' },
-        { label: 'Orkideler', category: 'Orkideler' },
-        { label: 'Lilyumlar', category: 'Lilyumlar' },
-        { label: 'Teraryumlar', category: 'Teraryumlar' },
-      ],
-      gift: [
-        { label: 'Çikolata', category: 'Papatyalar' },
-        { label: 'Peluş', category: 'Orkideler' },
-        { label: 'Kart', category: 'Güller' },
-        { label: 'Mum', category: 'Teraryumlar' },
-      ],
-      bonnyFood: [
-        { label: 'Kurabiye Seti', category: 'Teraryumlar' },
-        { label: 'Kahve', category: 'Lilyumlar' },
-        { label: 'Çay & İkram', category: 'Orkideler' },
-        { label: 'Tatlı Paketi', category: 'Güller' },
-      ],
-    }),
+  const categories = useMemo(
+    () => [
+      { label: 'Güller', to: '/flowers?category=Güller' },
+      { label: 'Orkideler', to: '/flowers?category=Orkideler' },
+      { label: 'Papatyalar', to: '/flowers?category=Papatyalar' },
+      { label: 'Lilyumlar', to: '/flowers?category=Lilyumlar' },
+      { label: 'Çikolatalar', to: '/flowers?category=Çikolatalar' },
+    ],
     []
   )
 
+
   useEffect(() => {
-    function onDocMouseDown(e) {
-      if (!navRef.current) return
-      if (navRef.current.contains(e.target)) return
-      setOpenMenu(null)
+    function onDocClick(e) {
+      if (catRef.current && !catRef.current.contains(e.target)) setCatOpen(false)
     }
-    document.addEventListener('mousedown', onDocMouseDown)
-    return () => document.removeEventListener('mousedown', onDocMouseDown)
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
   }, [])
 
-  function menuButton(label, id) {
-    const isOpen = openMenu === id
-    return (
-      <button
-        type="button"
-        className="flex items-center gap-2 border-b border-transparent pb-1 font-body text-sm transition hover:border-bordo"
-        aria-expanded={isOpen}
-        onClick={() => setOpenMenu((v) => (v === id ? null : id))}
-      >
-        <span>{label}</span>
-        <ChevronDown className={`h-4 w-4 text-[#1A1A1A] transition ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-    )
-  }
-
-  function menuPanel(items, id) {
-    if (openMenu !== id) return null
-    return (
-      <div className="absolute left-0 top-[calc(100%+10px)] z-50 w-72 rounded-lg border border-[#1A1A1A]/10 bg-white p-3 shadow-lg">
-        <div className="px-2 pb-2 font-body text-xs font-semibold uppercase tracking-wide text-[#1A1A1A]/60">
-          Kategoriler
-        </div>
-        <div className="space-y-1">
-          {items.map((it) => (
-            <Link
-              key={it.label}
-              to={`/flowers?category=${encodeURIComponent(it.category)}`}
-              onClick={() => setOpenMenu(null)}
-              className="flex items-center justify-between rounded-md px-3 py-2 font-body text-sm text-[#1A1A1A] transition hover:bg-krem hover:text-[#1A1A1A]"
-            >
-              <span>{it.label}</span>
-              <span className="text-xs font-semibold text-bordo/80">{it.category}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <header className="sticky top-0 z-50 w-full">
-      <div className="bg-bordo text-white">
-        <div className="mx-auto max-w-7xl px-4 py-2 text-center font-body text-xs tracking-wide">
-          Ücretsiz Kargo — 500₺ Üzeri Siparişlerde
+    <header className="sticky top-0 z-50 w-full" id="site-header">
+      {/* Top delivery banner */}
+      <div className="bg-bordo">
+        <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2">
+          <Truck className="h-3.5 w-3.5 text-white/80" strokeWidth={1.75} />
+          <span className="font-body text-[11px] font-light tracking-[0.08em] text-white/90 sm:text-xs">
+            Ücretsiz Kargo — 500₺ Üzeri Siparişlerde
+          </span>
         </div>
       </div>
 
-      <div className="w-full border-b border-bordo/15 bg-white">
-        <div className="mx-auto max-w-7xl px-4">
+      {/* Main navigation */}
+      <div className="w-full border-b border-[#1A1A1A]/8 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
+            {/* Logo */}
             <Link
               to="/"
-              className="font-display text-lg font-bold tracking-[0.22em] text-bordo"
+              className="font-display text-xl font-semibold tracking-[0.25em] text-bordo transition-opacity hover:opacity-80 sm:text-2xl"
+              id="logo"
             >
               CODEBLOOMS
             </Link>
 
-            <nav ref={navRef} className="relative flex items-center gap-6 font-body text-sm text-[#1A1A1A]">
-              <div className="relative">
-                {menuButton('Gönderim Amacı', 'purpose')}
-                {menuPanel(menuData.purpose, 'purpose')}
-              </div>
-              <div className="relative">
-                {menuButton('Çiçek Türü', 'flowerType')}
-                {menuPanel(menuData.flowerType, 'flowerType')}
-              </div>
-              <div className="relative">
-                {menuButton('Hediye', 'gift')}
-                {menuPanel(menuData.gift, 'gift')}
-              </div>
-              <div className="relative">
-                {menuButton('BonnyFood', 'bonnyFood')}
-                {menuPanel(menuData.bonnyFood, 'bonnyFood')}
+            {/* Center navigation */}
+            <nav className="hidden items-center gap-8 lg:flex" aria-label="Ana menü">
+              {/* Kategoriler dropdown */}
+              <div className="relative" ref={catRef}>
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 font-body text-[13px] font-medium uppercase tracking-[0.06em] text-[#1A1A1A]/80 transition-colors hover:text-bordo"
+                  aria-expanded={catOpen}
+                  onClick={() => setCatOpen((v) => !v)}
+                  id="categories-menu-btn"
+                >
+                  Kategoriler
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform duration-200 ${catOpen ? 'rotate-180' : ''}`}
+                    strokeWidth={2}
+                  />
+                </button>
+
+                {catOpen && (
+                  <div className="absolute left-1/2 top-[calc(100%+12px)] z-50 w-52 -translate-x-1/2 rounded-lg border border-[#1A1A1A]/8 bg-white p-2 shadow-xl shadow-black/5">
+                    {categories.map((c) => (
+                      <Link
+                        key={c.label}
+                        to={c.to}
+                        onClick={() => setCatOpen(false)}
+                        className="block rounded-md px-4 py-2.5 font-body text-sm text-[#1A1A1A]/80 transition-colors hover:bg-krem hover:text-bordo"
+                        id={`cat-link-${c.label}`}
+                      >
+                        {c.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <Link
                 to="/about"
-                className="border-b border-transparent pb-1 transition-colors hover:border-bordo"
+                className="font-body text-[13px] font-medium uppercase tracking-[0.06em] text-[#1A1A1A]/80 transition-colors hover:text-bordo"
+                id="nav-about"
               >
                 Hakkımızda
               </Link>
               <Link
                 to="/orders"
-                className="border-b border-transparent pb-1 transition-colors hover:border-bordo"
+                className="font-body text-[13px] font-medium uppercase tracking-[0.06em] text-[#1A1A1A]/80 transition-colors hover:text-bordo"
+                id="nav-orders"
               >
                 Siparişlerim
               </Link>
-              <Link
-                to="/register"
-                className="border-b border-transparent pb-1 transition-colors hover:border-bordo"
-              >
-                Kayıt Ol
-              </Link>
-              <Link
-                to="/admin/products"
-                className="border-b border-transparent pb-1 transition-colors hover:border-bordo"
-              >
-                Ürün Yönetimi
-              </Link>
             </nav>
 
-            <Link
-              className="relative inline-flex items-center gap-2 font-body text-sm text-[#1A1A1A] transition-opacity hover:opacity-80"
-              aria-label={`Sepet (${cartCount})`}
-              to="/cart"
-            >
-              <ShoppingCart className="h-5 w-5 text-bordo" strokeWidth={1.75} />
-              {cartCount > 0 ? (
-                <span className="absolute -right-3 -top-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-bordo px-1 text-[11px] font-semibold text-white">
-                  {cartCount}
-                </span>
-              ) : null}
-              <span className="hidden sm:inline">Sepet</span>
-            </Link>
+            {/* Right actions */}
+            <div className="flex items-center gap-5">
+              <Link
+                to="/cart"
+                className="group relative flex items-center gap-2 transition-opacity hover:opacity-80"
+                aria-label={`Sepet (${cartCount})`}
+                id="cart-link"
+              >
+                <ShoppingCart className="h-5 w-5 text-[#1A1A1A]/70 transition-colors group-hover:text-bordo" strokeWidth={1.5} />
+                {cartCount > 0 && (
+                  <span className="absolute -right-2.5 -top-2.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bordo px-1 text-[10px] font-semibold text-white">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+
+              <div className="hidden h-5 w-px bg-[#1A1A1A]/10 sm:block" />
+
+              <Link
+                to="/register"
+                className="hidden items-center gap-2 font-body text-[13px] font-medium text-[#1A1A1A]/70 transition-colors hover:text-bordo sm:flex"
+                id="nav-register"
+              >
+                <User className="h-4 w-4" strokeWidth={1.5} />
+                <span>Kayıt Ol</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
     </header>
   )
 }
-

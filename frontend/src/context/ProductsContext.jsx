@@ -23,9 +23,19 @@ function getSeedProducts() {
   return mockFlowers.map((p) => normalizeProduct(p)).filter(Boolean)
 }
 
+// Bump this version whenever the seed data structure changes
+const DATA_VERSION = 5
+
 export function ProductsProvider({ children }) {
   const [products, setProducts] = useState(() => {
     try {
+      const ver = localStorage.getItem('cb_products_ver')
+      if (ver !== String(DATA_VERSION)) {
+        // Data structure changed — clear old cache
+        localStorage.removeItem('cb_products')
+        localStorage.setItem('cb_products_ver', String(DATA_VERSION))
+        return getSeedProducts()
+      }
       const raw = localStorage.getItem('cb_products')
       if (!raw) return getSeedProducts()
       const parsed = JSON.parse(raw)
@@ -42,6 +52,7 @@ export function ProductsProvider({ children }) {
   useEffect(() => {
     try {
       localStorage.setItem('cb_products', JSON.stringify(products))
+      localStorage.setItem('cb_products_ver', String(DATA_VERSION))
     } catch {
       // ignore
     }

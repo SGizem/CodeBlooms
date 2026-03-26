@@ -1,4 +1,7 @@
 import { useMemo } from 'react'
+import { ShoppingBag } from 'lucide-react'
+
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1487530811015-780780b58c25?w=600&q=80'
 
 export default function FlowerCard({
   id,
@@ -14,50 +17,58 @@ export default function FlowerCard({
 
   return (
     <article
-      className="group relative overflow-hidden rounded-lg border border-[#1A1A1A]/10 bg-bej transition-transform duration-300 hover:scale-[1.02] hover:shadow-lg"
+      className="group flex flex-col overflow-hidden rounded-xl border border-[#1A1A1A]/6 bg-white transition-all duration-300 hover:shadow-lg hover:shadow-black/10 hover:-translate-y-1 cursor-pointer"
+      id={`product-card-${id}`}
     >
-      {hasDiscount ? (
-        <div className="absolute left-3 top-3 z-10 rounded-full bg-bordo px-2 py-1 text-[11px] font-semibold text-white">
-          İNDİRİMLİ
-        </div>
-      ) : null}
-
-      <div className="aspect-square w-full overflow-hidden bg-bej">
+      {/* Image container */}
+      <div className="relative aspect-square w-full overflow-hidden bg-krem">
         <img
           src={image}
           alt={name}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
+          onError={(e) => { e.target.src = FALLBACK_IMG }}
         />
+        {hasDiscount && (
+          <div className="absolute left-3 top-3 rounded-full bg-bordo px-3 py-1 font-body text-[10px] font-semibold uppercase tracking-wider text-white shadow-sm">
+            İndirim
+          </div>
+        )}
       </div>
 
-      <div className="space-y-2 p-4">
-        <h3 className="font-body text-sm font-medium text-[#1A1A1A]">
+      {/* Content */}
+      <div className="flex flex-1 flex-col p-5">
+        <h3 className="font-display text-lg font-semibold text-[#1A1A1A] leading-snug">
           {name}
         </h3>
 
-        <div className="flex items-baseline gap-3">
-          <div className="font-body text-base font-bold text-bordo">
+        <div className="mt-2 flex items-baseline gap-2.5">
+          <span className="font-body text-lg font-bold text-bordo">
             {price}₺
-          </div>
-          {hasDiscount ? (
-            <div className="font-body text-sm text-[#1A1A1A]/60 line-through">
+          </span>
+          {hasDiscount && (
+            <span className="font-body text-sm text-[#1A1A1A]/40 line-through">
               {originalPrice}₺
-            </div>
-          ) : null}
+            </span>
+          )}
         </div>
-      </div>
 
-      <div className="absolute inset-x-0 bottom-0 p-4">
-        <button
-          type="button"
-          onClick={() => onAddToCart(id)}
-          className="w-full rounded-md bg-bordo px-4 py-2 text-center font-body text-sm font-semibold text-white opacity-0 translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto"
-        >
-          Sepete Ekle
-        </button>
+        <div className="mt-auto pt-4">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onAddToCart(id)
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-bordo px-4 py-3 font-body text-sm font-semibold text-white transition-all duration-200 hover:bg-[#601530] hover:shadow-lg hover:shadow-bordo/20 active:scale-95"
+            id={`add-to-cart-${id}`}
+          >
+            <ShoppingBag className="h-4 w-4" strokeWidth={1.75} />
+            Sepete Ekle
+          </button>
+        </div>
       </div>
     </article>
   )
 }
-
