@@ -1,21 +1,19 @@
+const jwt = require('jsonwebtoken')
+
 module.exports = function authMiddleware(req, res, next) {
+  const authHeader = req.headers['authorization'] || req.headers['Authorization']
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Yetkilendirme token\'ı bulunamadı.' })
+  }
+
+  const token = authHeader.split(' ')[1]
+
   try {
-    const headerUserId = req.header('x-user-id')
-    const authHeader = req.header('authorization') || req.header('Authorization')
-    const bearerUserId =
-      typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
-        ? authHeader.slice(7).trim()
-        : null
-
-    const userId = headerUserId || bearerUserId
-
-    if (!userId) {
-      return res.status(401).json({ message: 'Giriş yapmanız gerekiyor' })
-    }
-
-    req.user = { id: userId }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    req.user = decoded
     next()
   } catch (err) {
-    return res.status(500).json({ message: 'Yetkilendirme sırasında hata oluştu' })
+    return res.status(401).json({ message: 'Geçersiz veya süresi dolmuş token.' })
   }
 }

@@ -21,7 +21,7 @@ const orderSchema = new mongoose.Schema(
     giftNote: { type: String, default: '' },
     status: {
       type: String,
-      enum: ['preparing', 'shipped', 'delivered', 'cancelled'],
+      enum: ['pending', 'preparing', 'shipped', 'delivered', 'cancelled'],
       default: 'preparing',
     },
   },

@@ -40,8 +40,8 @@ export default function CheckoutPage() {
   })
 
   // Gift note
-  const [includeGiftNote, setIncludeGiftNote] = useState(true)
   const [giftNote, setGiftNote] = useState('')
+  const [isNoteAdded, setIsNoteAdded] = useState(false)
 
   // Payment
   const [paymentMethod, setPaymentMethod] = useState('Kredi Kartı')
@@ -81,7 +81,7 @@ export default function CheckoutPage() {
       if (!expiry.trim()) return 'Son kullanma tarihi zorunludur.'
       if (!cvv.trim()) return 'CVV zorunludur.'
     }
-    if (includeGiftNote && giftNote.trim().length > 200) return 'Hediye notu 200 karakteri geçemez.'
+    if (isNoteAdded && giftNote.trim().length > 200) return 'Hediye notu 200 karakteri geçemez.'
     return ''
   }
 
@@ -91,7 +91,7 @@ export default function CheckoutPage() {
     const msg = validate()
     if (msg) { setError(msg); return }
 
-    const gift = includeGiftNote ? giftNote.trim() : ''
+    const gift = isNoteAdded ? giftNote.trim() : ''
     const res = createOrder({
       cartItems: items,
       productsById: productById,
@@ -173,31 +173,51 @@ export default function CheckoutPage() {
 
               {/* Hediye notu */}
               <div className="bg-[#F5F0E8] rounded-2xl p-6">
-                <div className="flex items-center justify-between gap-4 mb-3">
-                  <div>
-                    <div className="font-display text-xl font-bold text-[#7B1C3E]">💌 Hediye Notu</div>
-                    <div className="mt-1 font-jost text-sm text-[#1A1A1A]/60">Sevdiğinize özel bir mesaj ekleyin.</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { if (includeGiftNote) { setIncludeGiftNote(false); setGiftNote('') } else setIncludeGiftNote(true) }}
-                    className="rounded-full border border-[#7B1C3E] bg-white px-4 py-2 font-jost text-sm font-semibold text-[#7B1C3E] transition hover:bg-[#7B1C3E] hover:text-white"
-                  >
-                    {includeGiftNote ? 'Notu Kaldır' : 'Not Ekle'}
-                  </button>
+                <div className="mb-4">
+                  <div className="font-display text-xl font-bold text-[#7B1C3E]">💌 Hediye Notu</div>
+                  <div className="mt-1 font-jost text-sm text-[#1A1A1A]/60">Sevdiğinize özel bir mesaj ekleyin.</div>
                 </div>
-                {includeGiftNote && (
+
+                {!isNoteAdded ? (
                   <div>
                     <textarea
-                      className="w-full min-h-[100px] resize-none rounded-xl border border-[#EDE8DE] bg-white px-4 py-3 font-jost text-sm outline-none transition-all focus:border-[#7B1C3E] focus:ring-2 focus:ring-[#7B1C3E]/20"
+                      className="w-full min-h-[110px] resize-none rounded-xl border border-[#EDE8DE] bg-white px-4 py-3 font-jost text-sm outline-none transition-all focus:border-[#7B1C3E] focus:ring-2 focus:ring-[#7B1C3E]/20 placeholder:text-[#1A1A1A]/30"
                       value={giftNote}
                       onChange={e => setGiftNote(e.target.value)}
                       maxLength={200}
-                      placeholder="Sevdiğinize özel bir mesaj yazın..."
+                      placeholder="Sevdiğinize özel bir mesaj yazın…"
                     />
-                    <div className="mt-1 flex justify-between font-jost text-xs text-[#1A1A1A]/50">
+                    <div className="mt-1 mb-4 flex justify-between font-jost text-xs text-[#1A1A1A]/40">
                       <span>En fazla 200 karakter</span>
                       <span>{giftNote.length}/200</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { if (giftNote.trim()) setIsNoteAdded(true) }}
+                      disabled={!giftNote.trim()}
+                      className="rounded-full bg-[#7B1C3E] px-6 py-2.5 font-jost text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#5a1530] hover:shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Hediye Notu Ekle
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ animation: 'giftNoteFadeIn 0.4s ease both' }}>
+                    <style>{`@keyframes giftNoteFadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }`}</style>
+                    <div className="flex items-start gap-3 rounded-xl border border-[#7B1C3E]/20 bg-white px-5 py-4 shadow-sm">
+                      <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#7B1C3E] text-white text-xs font-bold">✓</span>
+                      <div className="min-w-0">
+                        <p className="font-jost text-sm font-semibold text-[#7B1C3E] tracking-wide">Hediye notu eklendi.</p>
+                        <p className="mt-1 font-jost text-sm text-[#1A1A1A]/60 italic leading-relaxed line-clamp-3">"{giftNote}"</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => { setIsNoteAdded(false); setGiftNote('') }}
+                        className="font-jost text-sm text-[#7B1C3E] underline underline-offset-2 decoration-[#7B1C3E]/40 transition hover:decoration-[#7B1C3E] hover:text-[#5a1530]"
+                      >
+                        Hediye Notunu Kaldır
+                      </button>
                     </div>
                   </div>
                 )}
