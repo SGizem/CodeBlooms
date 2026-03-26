@@ -1,50 +1,53 @@
-const express  = require('express')
-const mongoose = require('mongoose')
-const cors     = require('cors')
-require('dotenv').config()
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+require('dotenv').config();
 
-// ── Ortam değişkeni doğrulaması ──────────────────────────────────────
+// ── 1. ORTAM DEĞİŞKENİ KONTROLÜ (Gizem'in Sıkı Güvenliği) ──
 if (!process.env.MONGO_URI || process.env.MONGO_URI.trim() === '') {
-  console.error('\x1b[41m\x1b[37m\x1b[1m')
-  console.error(' KRİTİK HATA: .env dosyasında MONGO_URI bulunamadı! ')
-  console.error(' Lütfen backend/.env dosyasını oluşturun ve MONGO_URI değerini ekleyin. ')
-  console.error('\x1b[0m')
-  process.exit(1)
+  console.error('\x1b[41m\x1b[37m\x1b[1m');
+  console.error(' KRİTİK HATA: .env dosyasında MONGO_URI bulunamadı! ');
+  console.error(' Lütfen backend/.env dosyasını oluşturun ve MONGO_URI değerini ekleyin. ');
+  console.error('\x1b[0m');
+  process.exit(1);
 }
 
-const PORT = process.env.PORT || 5000
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-const app = express()
+// ── 2. VERİTABANI BAĞLANTISI ──
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ MongoDB Atlas Bağlantısı Başarılı'))
+  .catch((err) => console.error('❌ MongoDB Bağlantı Hatası:', err));
 
-app.use(cors())
-app.use(express.json())
+// ── 3. EDA'NIN ROTALARI (Madde 3) ──
+app.use('/api/cart', require('./routes/cartRoutes'));
+app.use('/api/orders', require('./routes/orderManageRoutes'));
+app.use('/api/orders', require('./routes/giftNoteRoutes'));
 
-// ── MongoDB bağlantısı ───────────────────────────────────────────────
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log('\x1b[32m✓ MongoDB bağlantısı başarılı.\x1b[0m')
-  })
-  .catch(err => {
-    console.error('\x1b[31m✗ MongoDB bağlantı hatası:\x1b[0m', err.message)
-    console.error('  → MONGO_URI değerinizi ve ağ bağlantınızı kontrol edin.')
-    process.exit(1)
-  })
+// ── 4. GİZEM'İN ROTALARI (Madde 3) ──
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/products', require('./routes/productRoutes'));
+app.use('/api/comments', require('./routes/commentRoutes'));
 
-// ── Route'lar ────────────────────────────────────────────────────────
-app.use('/api/users',    require('./routes/authRoutes'))
-app.use('/api/products', require('./routes/productRoutes'))
-app.use('/api/orders',   require('./routes/orderRoutes'))
-app.use('/api/comments', require('./routes/commentRoutes'))
+// ── 5. TEST ROTASI ──
+app.get('/', (req, res) => {
+  res.send('🚀 CodeBlooms API Sunucusu Kusursuz Çalışıyor!');
+});
 
-// Yorum route'larını /api/products/:productId/comments prefix'iyle de bağla
-app.use('/api', require('./routes/commentRoutes'))
+// ── 6. HATA YÖNETİMİ (Bulunamayan Endpointler İçin) ──
+app.use((req, res) => {
+  res.status(404).json({ message: 'Endpoint bulunamadı' });
+});
 
-// Eda'nın route'ları buraya eklenecek:
-// app.use('/api/cart',   require('./routes/cartRoutes'))
-// app.use('/api/orders', require('./routes/orderNoteRoutes'))
-
-// ── Sunucu ───────────────────────────────────────────────────────────
+// ── 7. SUNUCU BAŞLATMA ──
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`\x1b[36m🚀 Server çalışıyor → http://localhost:${PORT}\x1b[0m`)
-})
+  console.log(`
+  ***************************************
+  🚀 Sunucu ${PORT} Portunda Başarıyla Başlatıldı
+  📅 Tarih: ${new Date().toLocaleString('tr-TR')}
+  ***************************************
+  `);
+});
