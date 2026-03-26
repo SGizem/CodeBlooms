@@ -24,7 +24,7 @@ function getSeedProducts() {
 }
 
 // Bump this version whenever the seed data structure changes
-const DATA_VERSION = 4
+const DATA_VERSION = 5
 
 export function ProductsProvider({ children }) {
   const [products, setProducts] = useState(() => {

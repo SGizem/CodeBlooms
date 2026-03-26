@@ -2,6 +2,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { mockOrders } from '../data/mockOrders'
 
+const ORDERS_VERSION = 2
+
 export const OrdersContext = createContext(null)
 
 function normalizeOrder(raw) {
@@ -31,6 +33,12 @@ function normalizeOrder(raw) {
 export function OrdersProvider({ children }) {
   const [orders, setOrders] = useState(() => {
     try {
+      const ver = localStorage.getItem('cb_orders_ver')
+      if (ver !== String(ORDERS_VERSION)) {
+        localStorage.removeItem('cb_orders')
+        localStorage.setItem('cb_orders_ver', String(ORDERS_VERSION))
+        return mockOrders.map(normalizeOrder).filter(Boolean)
+      }
       const raw = localStorage.getItem('cb_orders')
       if (!raw) return mockOrders.map(normalizeOrder).filter(Boolean)
       const parsed = JSON.parse(raw)
@@ -47,6 +55,7 @@ export function OrdersProvider({ children }) {
   useEffect(() => {
     try {
       localStorage.setItem('cb_orders', JSON.stringify(orders))
+      localStorage.setItem('cb_orders_ver', String(ORDERS_VERSION))
     } catch {
       // ignore
     }
