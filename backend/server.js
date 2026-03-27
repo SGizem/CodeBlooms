@@ -19,9 +19,9 @@ mongoose.connect(process.env.MONGO_URI)
   .catch((err) => console.error('❌ MongoDB Bağlantı Hatası:', err));
 
 // ── 3. EDA'NIN ROTALARI (Madde 3) ──
-app.use('/api/cart', require('./routes/cartRoutes'));
-app.use('/api/orders', require('./routes/orderManageRoutes'));
-app.use('/api/orders', require('./routes/giftNoteRoutes'));
+//app.use('/api/cart', require('./routes/cartRoutes'));
+//app.use('/api/orders', require('./routes/orderManageRoutes'));
+//app.use('/api/orders', require('./routes/giftNoteRoutes'));
 
 // ── 4. GİZEM'İN ROTALARI (Madde 3) ──
 app.use('/api/users', require('./routes/authRoutes'));
