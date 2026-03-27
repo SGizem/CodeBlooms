@@ -13,7 +13,7 @@ export default function CheckoutPage() {
   const cart = useContext(CartContext)
   const { items, cartCount, clearCart } = cart
   const { productById } = useProducts()
-  const { createOrder } = useOrders()
+  const { addOrder } = useOrders()
   const navigate = useNavigate()
 
   const cartLines = useMemo(() => {
@@ -85,24 +85,48 @@ export default function CheckoutPage() {
     return ''
   }
 
-  function onSubmit(e) {
+  async function onSubmit(e) {
     e.preventDefault()
     setError('')
     const msg = validate()
     if (msg) { setError(msg); return }
 
     const gift = isNoteAdded ? giftNote.trim() : ''
-    const res = createOrder({
-      cartItems: items,
-      productsById: productById,
-      buyer,
-      giftNote: gift || null,
-    })
 
-    if (!res.ok) { setError(res.error || 'Sipariş oluşturulamadı.'); return }
+    // 1. Backend'in tam olarak beklediği profesyonel JSON formatı:
+    const orderData = {
+      orderItems: cartLines.map(line => ({
+        product: line.product.id || line.product._id,
+        name: line.product.name,
+        price: line.product.price,
+        quantity: line.qty,
+        image: line.product.image || ''
+      })),
+      shippingAddress: {
+        fullName: buyer.fullName,
+        email: buyer.email,
+        phone: buyer.phone,
+        address: buyer.address
+      },
+      paymentMethod: paymentMethod,
+      itemsPrice: subtotal,
+      shippingPrice: shipping,
+      totalPrice: total,
+      note: gift || null
+    }
 
+    // 2. Kuryeyi yolla ve cevabı BEKLE (await)
+    const res = await addOrder(orderData)
+
+    if (!res.ok) {
+      setError(res.error || 'Sipariş oluşturulamadı.')
+      return
+    }
+
+    // 3. BAŞARI DURUMU! Sepeti boşalt, kutlama mesajı ver ve yönlendir.
     clearCart()
-    navigate(`/orders/${res.order.id}`)
+    alert('🎉 Siparişiniz başarıyla oluşturuldu! Bizi tercih ettiğiniz için teşekkür ederiz.')
+    navigate('/orders')
   }
 
   const PAYMENT_METHODS = ['Kredi Kartı', 'Banka Kartı', 'Kapıda Ödeme']
@@ -227,7 +251,6 @@ export default function CheckoutPage() {
               <div className="bg-white rounded-2xl p-6 shadow-sm">
                 <h3 className="font-display text-2xl font-bold text-[#7B1C3E] mb-5">💳 Ödeme Bilgileri</h3>
 
-                {/* Method selector */}
                 <div className="flex gap-3 mb-6">
                   {PAYMENT_METHODS.map(method => (
                     <button
