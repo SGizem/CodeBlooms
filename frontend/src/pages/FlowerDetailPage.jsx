@@ -8,12 +8,18 @@ const FALLBACK = 'https://images.unsplash.com/photo-1487530811015-780780b58c25?w
 const CURRENT_USER = 'mock-user-123'
 
 const INITIAL_COMMENTS = [
-  { id: 1, userId: 'other-1', userName: 'Elif T.', rating: 5,
-    text: 'Harika bir buket, çok taze geldi ve kokusu muhteşemdi!', date: '20 Mart 2026' },
-  { id: 2, userId: CURRENT_USER, userName: 'Sen', rating: 4,
-    text: 'Çok beğendim, ambalajı da çok şıktı.', date: '18 Mart 2026' },
-  { id: 3, userId: 'other-2', userName: 'Mehmet K.', rating: 5,
-    text: 'Annem çok sevdi, kesinlikle tavsiye ederim.', date: '15 Mart 2026' },
+  {
+    id: 1, userId: 'other-1', userName: 'Elif T.', rating: 5,
+    text: 'Harika bir buket, çok taze geldi ve kokusu muhteşemdi!', date: '20 Mart 2026'
+  },
+  {
+    id: 2, userId: CURRENT_USER, userName: 'Sen', rating: 4,
+    text: 'Çok beğendim, ambalajı da çok şıktı.', date: '18 Mart 2026'
+  },
+  {
+    id: 3, userId: 'other-2', userName: 'Mehmet K.', rating: 5,
+    text: 'Annem çok sevdi, kesinlikle tavsiye ederim.', date: '15 Mart 2026'
+  },
 ]
 
 function StarRow({ count, interactive = false, hovered = 0, onHover, onLeave, onClick }) {
@@ -164,8 +170,7 @@ export default function FlowerDetailPage() {
   const { id } = useParams()
   const cart = useContext(CartContext)
   const { productById } = useProducts()
-  const flowerId = Number(id)
-
+  const flowerId = String(id)
   const flower = useMemo(() => {
     return productById.get(flowerId) ?? null
   }, [flowerId, productById])

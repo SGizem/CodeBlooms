@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
-
+import { useAuth } from '../context/AuthContext'
 export default function RegisterPage() {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: '', confirmPassword: '',
@@ -11,7 +11,7 @@ export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const navigate = useNavigate()
-
+  const { register } = useAuth()
   function update(key, value) {
     setForm(prev => ({ ...prev, [key]: value }))
   }
@@ -29,14 +29,16 @@ export default function RegisterPage() {
     setError('')
     const msg = validate()
     if (msg) { setError(msg); return }
-    try {
-      // Gerçek API: await fetch('/api/users/register', { method:'POST', body: JSON.stringify(form) })
-      localStorage.setItem('mockUser', JSON.stringify({ ...form, id: Date.now() }))
-      setSuccess(true)
-      setTimeout(() => navigate('/'), 2000)
-    } catch {
-      setError('Kayıt başarısız, tekrar deneyin.')
+
+    // Gerçek API'ye gönderiyoruz
+    const res = await register(form);
+    if (!res.ok) {
+      setError(res.error);
+      return;
     }
+
+    setSuccess(true)
+    setTimeout(() => navigate('/flowers'), 2000)
   }
 
   return (

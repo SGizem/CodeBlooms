@@ -20,7 +20,7 @@ export default function CartPage() {
   const cartLines = useMemo(() => {
     return Object.entries(items ?? {})
       .map(([idRaw, qty]) => {
-        const id = Number(idRaw)
+        const id = String(idRaw)
         const product = productById?.get?.(id) ?? null
         return product
           ? { product, qty: Number(qty) }

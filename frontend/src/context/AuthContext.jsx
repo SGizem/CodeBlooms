@@ -1,99 +1,68 @@
-/* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react';
+import api from '../api';
 
-export const AuthContext = createContext(null)
-
-function safeParseJSON(raw) {
-  try {
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
-function getDefaultUsers() {
-  return []
-}
+export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(() => {
-    const parsedUsers = safeParseJSON(localStorage.getItem('cb_users'))
-    return Array.isArray(parsedUsers) ? parsedUsers : getDefaultUsers()
-  })
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const [currentUserId, setCurrentUserId] = useState(() => {
-    const parsedCurrent = safeParseJSON(localStorage.getItem('cb_currentUserId'))
-    return parsedCurrent ? String(parsedCurrent) : null
-  })
-
+  // Sayfa yenilendiğinde kullanıcının oturumu açık kalsın
   useEffect(() => {
-    try {
-      localStorage.setItem('cb_users', JSON.stringify(users))
-    } catch {
-      // ignore
+    const userStr = localStorage.getItem('cb_current_user');
+    if (userStr) {
+      try {
+        setCurrentUser(JSON.parse(userStr));
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('cb_current_user');
+      }
     }
-  }, [users])
+  }, []);
 
-  useEffect(() => {
+  // GERÇEK KAYIT OLMA (MongoDB'ye yazar)
+  async function register({ firstName, lastName, email, password }) {
     try {
-      localStorage.setItem('cb_currentUserId', JSON.stringify(currentUserId))
-    } catch {
-      // ignore
+      const res = await api.post('/api/users/register', { firstName, lastName, email, password });
+
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('cb_current_user', JSON.stringify(res.data.user));
+      setCurrentUser(res.data.user);
+
+      return { ok: true, user: res.data.user };
+    } catch (err) {
+      return { ok: false, error: err.response?.data?.message || 'Kayıt başarısız oldu.' };
     }
-  }, [currentUserId])
-
-  const currentUser = useMemo(
-    () => users.find((u) => String(u.id) === String(currentUserId)) ?? null,
-    [users, currentUserId]
-  )
-
-  function validateEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email ?? '').trim())
   }
 
-  function register({ fullName, email, password }) {
-    const name = String(fullName ?? '').trim()
-    const e = String(email ?? '').trim().toLowerCase()
-    const p = String(password ?? '')
+  // GERÇEK GİRİŞ YAPMA
+  async function login({ email, password }) {
+    try {
+      const res = await api.post('/api/users/login', { email, password });
 
-    if (!name) return { ok: false, error: 'Ad Soyad zorunludur.' }
-    if (!validateEmail(e)) return { ok: false, error: 'Geçerli bir e-posta girin.' }
-    if (p.length < 6) return { ok: false, error: 'Şifre en az 6 karakter olmalı.' }
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('cb_current_user', JSON.stringify(res.data.user));
+      setCurrentUser(res.data.user);
 
-    const exists = users.some((u) => String(u.email).toLowerCase() === e)
-    if (exists) return { ok: false, error: 'Bu e-posta ile kayıtlı hesap zaten var.' }
-
-    const id = `U${String(Date.now()).slice(-8)}`
-    const user = { id, fullName: name, email: e, password: p, role: 'user', createdAt: new Date().toISOString() }
-    setUsers((prev) => [user, ...prev])
-    setCurrentUserId(id)
-    return { ok: true, user }
+      return { ok: true, user: res.data.user };
+    } catch (err) {
+      return { ok: false, error: err.response?.data?.message || 'E-posta veya şifre hatalı.' };
+    }
   }
 
-  function login({ email, password }) {
-    const e = String(email ?? '').trim().toLowerCase()
-    const p = String(password ?? '')
-    if (!validateEmail(e)) return { ok: false, error: 'Geçerli bir e-posta girin.' }
-    if (!p) return { ok: false, error: 'Şifre zorunludur.' }
-
-    const user = users.find((u) => String(u.email).toLowerCase() === e && u.password === p) ?? null
-    if (!user) return { ok: false, error: 'E-posta veya şifre hatalı.' }
-    setCurrentUserId(user.id)
-    return { ok: true, user }
-  }
-
+  // ÇIKIŞ YAPMA
   function logout() {
-    setCurrentUserId(null)
+    localStorage.removeItem('token');
+    localStorage.removeItem('cb_current_user');
+    setCurrentUser(null);
   }
 
-  const value = { currentUser, users, register, login, logout }
+  const value = { currentUser, register, login, logout };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider')
-  return ctx
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  return ctx;
 }
-

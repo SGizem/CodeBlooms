@@ -19,7 +19,7 @@ export default function CheckoutPage() {
   const cartLines = useMemo(() => {
     return Object.entries(items ?? {})
       .map(([idRaw, qtyRaw]) => {
-        const id = Number(idRaw)
+        const id = String(idRaw)
         const product = productById?.get?.(id) ?? null
         const qty = Number(qtyRaw)
         return product ? { product, qty } : null
@@ -234,11 +234,10 @@ export default function CheckoutPage() {
                       key={method}
                       type="button"
                       onClick={() => setPaymentMethod(method)}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-jost font-medium border transition-all ${
-                        paymentMethod === method
-                          ? 'bg-[#7B1C3E] text-white border-[#7B1C3E]'
-                          : 'border-[#EDE8DE] text-[#1A1A1A]/60 hover:border-[#7B1C3E]'
-                      }`}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-jost font-medium border transition-all ${paymentMethod === method
+                        ? 'bg-[#7B1C3E] text-white border-[#7B1C3E]'
+                        : 'border-[#EDE8DE] text-[#1A1A1A]/60 hover:border-[#7B1C3E]'
+                        }`}
                     >
                       {method}
                     </button>
