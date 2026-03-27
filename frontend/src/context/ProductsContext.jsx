@@ -5,10 +5,12 @@ export const ProductsContext = createContext(null);
 
 export function ProductsProvider({ children }) {
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Sayfa açıldığında MongoDB'den ürünleri getir
   useEffect(() => {
     async function fetchProducts() {
+      setLoading(true);
       try {
         const res = await api.get('/api/products');
 
@@ -22,10 +24,13 @@ export function ProductsProvider({ children }) {
         setProducts(mappedProducts);
       } catch (err) {
         console.error("Ürünler çekilemedi:", err);
+      } finally {
+        setLoading(false);
       }
     }
     fetchProducts();
   }, []);
+
 
   const productById = useMemo(() => {
     const map = new Map();
@@ -65,7 +70,7 @@ export function ProductsProvider({ children }) {
     }
   }
 
-  const value = { products, productById, addProduct, deleteProduct };
+  const value = { products, productById, loading, addProduct, deleteProduct };
 
   return <ProductsContext.Provider value={value}>{children}</ProductsContext.Provider>;
 }

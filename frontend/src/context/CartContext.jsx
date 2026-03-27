@@ -9,6 +9,7 @@ export function CartProvider({ children }) {
   const [itemIds, setItemIds] = useState({}) // Backend'deki cartItemId'leri tutmak için
   const [toast, setToast] = useState(null)
   const [lastMutation, setLastMutation] = useState(null)
+  const [loading, setLoading] = useState(false)
 
   // Backend'den gelen karmaşık sepeti, Frontend'in anladığı basit {id: qty} diline çeviren fonksiyon
   const syncCartWithBackend = (backendItems = []) => {
@@ -28,11 +29,14 @@ export function CartProvider({ children }) {
     const fetchCart = async () => {
       const token = localStorage.getItem('token')
       if (!token) return // Kullanıcı giriş yapmadıysa sepeti çekme
+      setLoading(true)
       try {
         const res = await api.get('/api/cart')
         syncCartWithBackend(res.data.cart?.items || [])
       } catch (err) {
         console.error('Sepet yüklenirken hata:', err)
+      } finally {
+        setLoading(false)
       }
     }
     fetchCart()
@@ -52,6 +56,7 @@ export function CartProvider({ children }) {
 
   async function addToCart(id, qty = 1) {
     if (!id || qty <= 0) return
+    setLoading(true)
     try {
       // MongoDB'ye ekle
       const res = await api.post('/api/cart/add', { productId: id, quantity: qty })
@@ -60,12 +65,19 @@ export function CartProvider({ children }) {
       setLastMutation({ key: Date.now(), type: 'add', id: String(id) })
       triggerToast('Ürün sepete eklendi.')
     } catch (err) {
-      triggerToast('Sepete eklenirken hata oluştu.')
+      if (err.response?.status === 401) {
+        triggerToast('Sepete eklemek için giriş yapmalısınız.')
+      } else {
+        triggerToast('Sepete eklenirken hata oluştu.')
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
   async function removeFromCart(id) {
     if (!id) return
+    setLoading(true)
     try {
       const cartItemId = itemIds[id]
       if (cartItemId) {
@@ -79,6 +91,8 @@ export function CartProvider({ children }) {
       triggerToast('Ürün sepetten kaldırıldı.')
     } catch (err) {
       triggerToast('Ürün silinirken hata oluştu.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -90,6 +104,7 @@ export function CartProvider({ children }) {
       removeFromCart(id)
       return
     }
+    setLoading(true)
     try {
       const cartItemId = itemIds[id]
       if (cartItemId) {
@@ -101,6 +116,8 @@ export function CartProvider({ children }) {
       triggerToast('Sepet güncellendi.')
     } catch (err) {
       triggerToast('Güncelleme başarısız.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -112,7 +129,9 @@ export function CartProvider({ children }) {
   const value = {
     cartCount,
     items,
+    itemIds,
     toast,
+    loading,
     lastMutation,
     addToCart,
     removeFromCart,
@@ -121,4 +140,4 @@ export function CartProvider({ children }) {
   }
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
-}
+}

@@ -59,7 +59,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto; /* smooth DEĞİL — instant scrollTo'nun doğru çalışması için */
 }
 
 body {

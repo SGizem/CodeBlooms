@@ -15,7 +15,7 @@ export default function CartPage() {
   const { productById } = useProducts()
   const navigate = useNavigate()
 
-  const { items, cartCount, updateCartQty, removeFromCart, clearCart, lastMutation } = cart
+  const { items, cartCount, updateCartQty, removeFromCart, clearCart, lastMutation, loading } = cart
 
   const cartLines = useMemo(() => {
     return Object.entries(items ?? {})
@@ -56,7 +56,9 @@ export default function CartPage() {
           <div>
             <h1 className="font-display text-4xl font-bold text-[#7B1C3E]">Sepet</h1>
             <div className="mt-2 font-jost text-sm text-[#1A1A1A]/70">
-              {cartCount > 0 ? `${cartCount} ürün` : 'Sepetiniz boş'}
+              {loading
+                ? 'Sepet yükleniyor...'
+                : cartCount > 0 ? `${cartCount} ürün` : 'Sepetiniz boş'}
             </div>
           </div>
 

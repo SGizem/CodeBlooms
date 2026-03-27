@@ -93,29 +93,20 @@ export default function CheckoutPage() {
 
     const gift = isNoteAdded ? giftNote.trim() : ''
 
-    // 1. Backend'in tam olarak beklediği profesyonel JSON formatı:
+    // Backend orderManageRoutes.js beklediği format:
+    // POST /api/orders → { address, recipient, items (opsiyonel), giftNote }
+    // Backend zaten sepeti MongoDB'den çekiyor, ama items gönderilebilir
     const orderData = {
-      orderItems: cartLines.map(line => ({
+      address: buyer.address,
+      recipient: buyer.fullName,
+      giftNote: gift || '',
+      // items opsiyonel: backend cart'tan alır ama override edebiliriz
+      items: cartLines.map(line => ({
         product: line.product.id || line.product._id,
-        name: line.product.name,
-        price: line.product.price,
         quantity: line.qty,
-        image: line.product.image || ''
       })),
-      shippingAddress: {
-        fullName: buyer.fullName,
-        email: buyer.email,
-        phone: buyer.phone,
-        address: buyer.address
-      },
-      paymentMethod: paymentMethod,
-      itemsPrice: subtotal,
-      shippingPrice: shipping,
-      totalPrice: total,
-      note: gift || null
     }
 
-    // 2. Kuryeyi yolla ve cevabı BEKLE (await)
     const res = await addOrder(orderData)
 
     if (!res.ok) {
@@ -123,7 +114,7 @@ export default function CheckoutPage() {
       return
     }
 
-    // 3. BAŞARI DURUMU! Sepeti boşalt, kutlama mesajı ver ve yönlendir.
+    // Başarı: sepeti temizle ve siparişler sayfasına yönlendir
     clearCart()
     alert('🎉 Siparişiniz başarıyla oluşturuldu! Bizi tercih ettiğiniz için teşekkür ederiz.')
     navigate('/orders')
