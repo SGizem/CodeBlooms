@@ -21,15 +21,18 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB Atlas Bağlantısı Başarılı'))
   .catch((err) => console.error('❌ MongoDB Bağlantı Hatası:', err));
 
-// ── 3. EDA'NIN ROTALARI (Madde 3) ──
+// ── 3. EDA'NIN ROTALARI (Madde 3 - Sepet, Sipariş Oluşturma/İptal, Hediye Notu) ──
 app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/orders', require('./routes/orderManageRoutes'));
 app.use('/api/orders', require('./routes/giftNoteRoutes'));
 
-// ── 4. GİZEM'İN ROTALARI (Madde 3) ──
-app.use('/api/users', require('./routes/userRoutes'));
+// ── 4. GİZEM'İN ROTALARI (Madde 3 - Kullanıcı, Ürün, Yorum, Sipariş Listeleme/Güncelleme) ──
+// DÜZELTME 1: userRoutes.js yerine klasördeki gerçek isim olan authRoutes.js kullanıldı.
+app.use('/api/users', require('./routes/authRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/comments', require('./routes/commentRoutes'));
+// DÜZELTME 2: Gizem'in sipariş işlemleri için orderRoutes.js dosyası eklendi.
+app.use('/api/orders', require('./routes/orderRoutes'));
 
 // ── 5. TEST ROTASI ──
 app.get('/', (req, res) => {
