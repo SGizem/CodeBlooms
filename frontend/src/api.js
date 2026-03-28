@@ -4,7 +4,7 @@ import axios from 'axios';
 // Vite proxy (/api → localhost:5000) sayesinde baseURL'e gerek yok;
 // yine de açık bırakıyoruz ki proxy olmayan ortamlarda da çalışsın.
 const api = axios.create({
-  baseURL: '',          // Vite proxy /api → http://localhost:5000
+  baseURL: 'https://codeblooms.onrender.com',
   timeout: 15000,
 });
 
