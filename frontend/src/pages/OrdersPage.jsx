@@ -49,9 +49,14 @@ function StatusBadge({ status, statusLabel }) {
   )
 }
 
+// Gereksinime göre güncellenmiş kontrol fonksiyonu
 function isActive(status) {
-  const s = String(status).toLowerCase()
-  return !s.includes('teslim') && !s.includes('iptal')
+  const s = String(status || '').toLowerCase()
+  // Eğer sipariş iptal, kargoda, yolda veya teslim durumundaysa false döner (butonları gizler)
+  if (s.includes('iptal') || s.includes('cancel') || s.includes('teslim') || s.includes('kargo') || s.includes('yolda')) {
+    return false
+  }
+  return true // Sadece "hazırlanıyor", "onaylandı" gibi durumlarda true döner
 }
 
 function EditModal({ order, onSave, onClose }) {
@@ -297,19 +302,17 @@ export default function OrdersPage() {
         {/* Tabs */}
         <div className="mt-8 flex border-b border-[#EDE8DE]">
           <button type="button" onClick={() => setTab('active')}
-            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${
-              tab === 'active'
-                ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
-                : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
-            }`}>
+            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${tab === 'active'
+              ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
+              : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
+              }`}>
             Aktif Siparişlerim ({activeOrders.length})
           </button>
           <button type="button" onClick={() => setTab('past')}
-            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${
-              tab === 'past'
-                ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
-                : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
-            }`}>
+            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${tab === 'past'
+              ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
+              : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
+              }`}>
             Geçmiş Siparişlerim ({pastOrders.length})
           </button>
         </div>
