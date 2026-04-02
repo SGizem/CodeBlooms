@@ -1,7 +1,7 @@
 # CodeBlooms - REST API Görevleri (Eda Göğebakan)
 
-**Yayınlanan REST API Domain Adresi:** [Domain Linki Buraya Gelecek]
-**Test Kanıt Videosu (YouTube):** [Video Linki Buraya Gelecek]
+**Yayınlanan REST API Domain Adresi:** [https://codeblooms.onrender.com/]
+**Test Kanıt Videosu (YouTube):** [https://youtu.be/Uw6n7uGLEgA]
 
 ## Gerçekleştirilen API Metotları ve Yollar
 
