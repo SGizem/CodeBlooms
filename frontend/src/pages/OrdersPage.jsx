@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useOrders } from '../context/OrdersContext'
+import { updateOrderAPI, cancelOrderAPI } from '../api'
 
 const FALLBACK = 'https://images.unsplash.com/photo-1487530811015-780780b58c25?w=200&q=80'
 
@@ -255,31 +256,69 @@ export default function OrdersPage() {
   const [editingOrder, setEditingOrder] = useState(null)
   const [cancelId, setCancelId] = useState(null)
 
-  const activeOrders = useMemo(() => orders.filter(o => isActive(o.status)), [orders])
-  const pastOrders = useMemo(() => orders.filter(o => !isActive(o.status)), [orders])
+  // ── GEREKSİNİM 6: Sipariş Listeleme — GET /api/orders/{userId} ──
+  // OrdersContext zaten useEffect ile MongoDB'den çekiyor.
+  // Burada aynı veriyi normalize ederek kullanıyoruz.
+  const sourceOrders = orders.map(o => ({
+    ...o,
+    buyer: o.buyer || { fullName: o.recipient || '', address: o.address || '' },
+  }))
+
+  const activeOrders = useMemo(
+    () => sourceOrders.filter(o => isActive(o.status)),
+    [orders]
+  )
+  const pastOrders = useMemo(
+    () => sourceOrders.filter(o => !isActive(o.status)),
+    [orders]
+  )
   const displayOrders = tab === 'active' ? activeOrders : pastOrders
 
-  function handleSave(orderId, updates) {
-    // Backend PUT /api/orders/:orderId şunu bekliyor: { address, recipient, giftNote }
-    // EditModal'dan gelen: { buyer: { address, fullName }, giftNote }
-    const payload = {
-      address: updates.buyer?.address ?? updates.address,
-      recipient: updates.buyer?.fullName ?? updates.recipient,
-      giftNote: updates.giftNote,
+  // ── GEREKSİNİM 5: Sipariş Güncelleme — PUT /api/orders/{orderId} ──
+  async function handleSave(orderId, updates) {
+    const payload = {}
+    if (updates.buyer?.address  !== undefined) payload.address   = updates.buyer.address
+    if (updates.buyer?.fullName !== undefined) payload.recipient = updates.buyer.fullName
+    if ('giftNote' in updates)                 payload.giftNote  = updates.giftNote ?? ''
+
+    // 1. Context üzerinden API'ye gönder (OrdersContext.updateOrder → api.put)
+    const res = await updateOrder(orderId, payload)
+    if (res?.ok) {
+      console.log('✅ GEREKSİNİM 5 — Sipariş Güncelleme MongoDB\'ye kaydedildi')
+    } else {
+      console.log('❌ Sipariş güncelleme hatası:', res?.error)
     }
-    updateOrder(orderId, payload)
+    setEditingOrder(null)
   }
 
-  function handleConfirmCancel() {
-    if (cancelId) {
-      cancelOrder(cancelId)
-      setCancelId(null)
+  // ── EDA GEREKSİNİM 6: Sipariş İptali — DELETE /api/orders/{orderId}/cancel ──
+  async function handleConfirmCancel() {
+    if (!cancelId) return
+    // Context üzerinden API'ye gönder (OrdersContext.cancelOrder → api.delete)
+    const res = await cancelOrder(cancelId)
+    if (res?.ok) {
+      console.log('✅ EDA GEREKSİNİM 6 — Sipariş İptali MongoDB\'ye kaydedildi')
+    } else {
+      console.log('❌ İptal API hatası:', res?.error)
     }
+    setCancelId(null)
   }
 
-  function handleDeleteGiftNote(orderId) {
-    // Backend: giftNote alanı boş string ile temizlenir
-    updateOrder(orderId, { giftNote: '' })
+  // ── EDA GEREKSİNİM 8: Hediye Notu Silme ──
+  async function handleDeleteGiftNote(orderId) {
+    // Context üzerinden API'ye gönder
+    const res = await updateOrder(orderId, { giftNote: '' })
+    if (res?.ok) {
+      console.log('✅ EDA GEREKSİNİM 8 — Hediye Notu Silme MongoDB\'ye kaydedildi')
+    } else {
+      // Fallback: direkt API çağrısı
+      try {
+        await updateOrderAPI(orderId, { giftNote: '' })
+        console.log('✅ EDA GEREKSİNİM 8 — Hediye Notu Silme (fallback) MongoDB\'ye kaydedildi')
+      } catch (err) {
+        console.log('❌ Hediye notu sil hatası:', err.message)
+      }
+    }
   }
 
   if (orders.length === 0) {
