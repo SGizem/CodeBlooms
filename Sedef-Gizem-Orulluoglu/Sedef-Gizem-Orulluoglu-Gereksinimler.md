@@ -27,7 +27,7 @@
    - **Açıklama:** Müşterinin daha önceden oluşturduğu geçmiş siparişlerinin detaylarını ve aktif siparişlerinin anlık durumunu (hazırlanıyor, yolda vb.) görüntülemesini sağlar.
 
 8. **Ürün Yorum Ekleme**
-   - **API Metodu:** `POST /api/products/{productId}/comments`
+   - **API Metodu:** `/api/comments/products/{productId}/comments`
    - **Açıklama:** Kullanıcının satın alıp teslim aldığı bir ürün için değerlendirme metni yazmasını ve puan vermesini (1-5 yıldız) sağlar. Yorum, doğrudan ilgili ürüne ve kullanıcının profiline bağlanır.
 
 9. **Ürün Yorum Silme**
