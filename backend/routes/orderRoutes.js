@@ -1,5 +1,5 @@
-const express        = require('express')
-const Order          = require('../models/Order')
+const express = require('express')
+const Order = require('../models/Order')
 const authMiddleware = require('../middleware/authMiddleware')
 
 const router = express.Router()
@@ -47,9 +47,9 @@ router.put('/:orderId', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Bu sipariş artık güncellenemez.' })
     }
 
-    if (address   !== undefined) order.address   = address
+    if (address !== undefined) order.address = address
     if (recipient !== undefined) order.recipient = recipient
-    if (giftNote  !== undefined) order.giftNote  = giftNote
+    if (giftNote !== undefined) order.giftNote = giftNote
 
     await order.save()
 
@@ -59,5 +59,13 @@ router.put('/:orderId', authMiddleware, async (req, res) => {
     return res.status(500).json({ message: 'Sunucu hatası.' })
   }
 })
+
+const { addNote, deleteNote } = require('../controllers/noteController')
+
+// POST /api/orders/:orderId/notes — hediye notu ekleme
+router.post('/:orderId/notes', authMiddleware, addNote)
+
+// DELETE /api/orders/:orderId/notes/:noteId — hediye notu silme
+router.delete('/:orderId/notes/:noteId', authMiddleware, deleteNote)
 
 module.exports = router

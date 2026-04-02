@@ -18,7 +18,13 @@ const orderSchema = new mongoose.Schema(
     total: { type: Number, required: true, min: 0 },
     address: { type: String, required: true },
     recipient: { type: String, required: true },
-    giftNote: { type: String, default: '' },
+    notes: [
+      {
+        _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+        message: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
     status: {
       type: String,
       enum: ['pending', 'preparing', 'shipped', 'delivered', 'cancelled'],
