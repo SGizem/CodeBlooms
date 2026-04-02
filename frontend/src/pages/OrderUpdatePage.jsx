@@ -65,7 +65,7 @@ export default function OrderUpdatePage() {
     return ''
   }
 
-  function onSubmit(e) {
+  async function onSubmit(e) {
     e.preventDefault()
     setError('')
     const msg = validate()
@@ -74,10 +74,17 @@ export default function OrderUpdatePage() {
       return
     }
 
-    updateOrder(order.id, {
-      buyer: form,
+    // Backend PUT /api/orders/:orderId şunu bekliyor: { address, recipient, giftNote }
+    const res = await updateOrder(order.id, {
+      address: form.address,
+      recipient: form.fullName,
       giftNote: includeGiftNote ? (giftNote.trim() ? giftNote.trim() : null) : null,
     })
+
+    if (res && !res.ok) {
+      setError(res.error || 'Güncelleme başarısız.')
+      return
+    }
     navigate(`/orders/${order.id}`)
   }
 

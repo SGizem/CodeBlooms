@@ -260,7 +260,14 @@ export default function OrdersPage() {
   const displayOrders = tab === 'active' ? activeOrders : pastOrders
 
   function handleSave(orderId, updates) {
-    updateOrder(orderId, updates)
+    // Backend PUT /api/orders/:orderId şunu bekliyor: { address, recipient, giftNote }
+    // EditModal'dan gelen: { buyer: { address, fullName }, giftNote }
+    const payload = {
+      address: updates.buyer?.address ?? updates.address,
+      recipient: updates.buyer?.fullName ?? updates.recipient,
+      giftNote: updates.giftNote,
+    }
+    updateOrder(orderId, payload)
   }
 
   function handleConfirmCancel() {
@@ -271,7 +278,8 @@ export default function OrdersPage() {
   }
 
   function handleDeleteGiftNote(orderId) {
-    updateOrder(orderId, { giftNote: null })
+    // Backend: giftNote alanı boş string ile temizlenir
+    updateOrder(orderId, { giftNote: '' })
   }
 
   if (orders.length === 0) {

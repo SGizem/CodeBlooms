@@ -1,17 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useMemo, useState } from 'react'
 import api from '../api'
 
 export const CommentsContext = createContext(null)
 
 export function CommentsProvider({ children }) {
   const [comments, setComments] = useState([])
-
-  // Herhangi bir ürün sayfası açıldığında API'den tüm yorumları getirebiliriz
-  // Ancak backend /api/products/:productId/comments şeklinde istiyor.
-  // Performans için şimdilik global olarak değil, sayfa bazlı çekmek daha doğru, 
-  // ancak mevcut kod mimarini bozmamak için frontend'i "ürün sayfasına girildiğinde oradan beslenen" bir yapıya uygun tutacağız.
-  // Not: Backend yapına göre yorumlar ürüne özel çekiliyor, bu yüzden Context'i dinamik hale getiriyoruz.
 
   const commentsByProductId = useMemo(() => {
     const map = new Map()
@@ -29,10 +23,12 @@ export function CommentsProvider({ children }) {
     return map
   }, [comments])
 
-  // Yorumları dinamik olarak ürün sayfasından çekmek için dışarıya fonksiyon açıyoruz
+  // DÜZELTME: Backend mount path'i: app.use('/api/comments', commentRoutes)
+  // Route içinde: router.get('/products/:productId/comments', ...)
+  // Gerçek URL: GET /api/comments/products/:productId/comments
   async function fetchCommentsForProduct(productId) {
     try {
-      const res = await api.get(`/api/products/${productId}/comments`)
+      const res = await api.get(`/api/comments/products/${productId}/comments`)
       const fetchedComments = res.data.comments.map(c => ({
         id: String(c._id),
         productId: String(c.product),
@@ -53,7 +49,10 @@ export function CommentsProvider({ children }) {
     }
   }
 
-  async function addComment(productId, { authorName, text, rating }) {
+  // DÜZELTME: Backend mount path'i: app.use('/api/comments', commentRoutes)
+  // Route içinde: router.post('/products/:productId/comments', ...)
+  // Gerçek URL: POST /api/comments/products/:productId/comments
+  async function addComment(productId, { text, rating }) {
     const pid = String(productId)
     const body = String(text ?? '').trim()
     const stars = Number(rating) || 0
@@ -61,7 +60,7 @@ export function CommentsProvider({ children }) {
     if (!pid || !body) return { ok: false, error: 'Lütfen tüm alanları doldurun.' }
 
     try {
-      const res = await api.post(`/api/products/${pid}/comments`, { text: body, rating: stars })
+      const res = await api.post(`/api/comments/products/${pid}/comments`, { text: body, rating: stars })
       const c = res.data.comment
       const newComment = {
         id: String(c._id),
@@ -79,6 +78,7 @@ export function CommentsProvider({ children }) {
     }
   }
 
+  // DELETE /api/comments/:commentId
   async function deleteComment(productId, commentId) {
     try {
       await api.delete(`/api/comments/${commentId}`)

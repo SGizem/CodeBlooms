@@ -79,13 +79,21 @@ export function OrdersProvider({ children }) {
   }
 
   // PUT /api/orders/:orderId — sipariş güncelle
+  // Backend: { address, recipient, giftNote } bekliyor
   const updateOrder = async (orderId, updates) => {
     try {
-      await api.put(`/api/orders/${orderId}`, updates)
+      const res = await api.put(`/api/orders/${orderId}`, updates)
+      const updatedOrder = res.data.order
       // Optimistic: local state güncelle
-      setOrders(prev => prev.map(o =>
-        o.id === orderId ? { ...o, ...updates } : o
-      ))
+      setOrders(prev => prev.map(o => {
+        if (o.id !== orderId) return o
+        return {
+          ...o,
+          address: updatedOrder?.address ?? updates.address ?? o.address,
+          recipient: updatedOrder?.recipient ?? updates.recipient ?? o.recipient,
+          giftNote: updatedOrder?.giftNote ?? updates.giftNote ?? o.giftNote,
+        }
+      }))
       return { ok: true }
     } catch (err) {
       console.error('Sipariş güncellenemedi:', err)
