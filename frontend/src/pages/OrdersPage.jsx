@@ -49,9 +49,14 @@ function StatusBadge({ status, statusLabel }) {
   )
 }
 
+// Gereksinime göre güncellenmiş kontrol fonksiyonu
 function isActive(status) {
-  const s = String(status).toLowerCase()
-  return !s.includes('teslim') && !s.includes('iptal')
+  const s = String(status || '').toLowerCase()
+  // Eğer sipariş iptal, kargoda, yolda veya teslim durumundaysa false döner (butonları gizler)
+  if (s.includes('iptal') || s.includes('cancel') || s.includes('teslim') || s.includes('kargo') || s.includes('yolda')) {
+    return false
+  }
+  return true // Sadece "hazırlanıyor", "onaylandı" gibi durumlarda true döner
 }
 
 function EditModal({ order, onSave, onClose }) {
@@ -255,7 +260,14 @@ export default function OrdersPage() {
   const displayOrders = tab === 'active' ? activeOrders : pastOrders
 
   function handleSave(orderId, updates) {
-    updateOrder(orderId, updates)
+    // Backend PUT /api/orders/:orderId şunu bekliyor: { address, recipient, giftNote }
+    // EditModal'dan gelen: { buyer: { address, fullName }, giftNote }
+    const payload = {
+      address: updates.buyer?.address ?? updates.address,
+      recipient: updates.buyer?.fullName ?? updates.recipient,
+      giftNote: updates.giftNote,
+    }
+    updateOrder(orderId, payload)
   }
 
   function handleConfirmCancel() {
@@ -266,7 +278,8 @@ export default function OrdersPage() {
   }
 
   function handleDeleteGiftNote(orderId) {
-    updateOrder(orderId, { giftNote: null })
+    // Backend: giftNote alanı boş string ile temizlenir
+    updateOrder(orderId, { giftNote: '' })
   }
 
   if (orders.length === 0) {
@@ -297,19 +310,17 @@ export default function OrdersPage() {
         {/* Tabs */}
         <div className="mt-8 flex border-b border-[#EDE8DE]">
           <button type="button" onClick={() => setTab('active')}
-            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${
-              tab === 'active'
-                ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
-                : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
-            }`}>
+            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${tab === 'active'
+              ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
+              : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
+              }`}>
             Aktif Siparişlerim ({activeOrders.length})
           </button>
           <button type="button" onClick={() => setTab('past')}
-            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${
-              tab === 'past'
-                ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
-                : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
-            }`}>
+            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${tab === 'past'
+              ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
+              : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
+              }`}>
             Geçmiş Siparişlerim ({pastOrders.length})
           </button>
         </div>

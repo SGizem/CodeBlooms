@@ -4,7 +4,10 @@ const authMiddleware = require('../middleware/authMiddleware')
 
 const router = express.Router()
 
-// POST /api/products/:productId/comments — yorum ekle
+// ─────────────────────────────────────────────
+// POST /api/comments/products/:productId/comments — Yorum ekle
+// Body: { text, rating }
+// ─────────────────────────────────────────────
 router.post('/products/:productId/comments', authMiddleware, async (req, res) => {
   try {
     const { productId } = req.params
@@ -14,16 +17,17 @@ router.post('/products/:productId/comments', authMiddleware, async (req, res) =>
       return res.status(400).json({ message: 'Yorum metni zorunludur.' })
     }
 
-    if (!rating || rating < 1 || rating > 5) {
+    const stars = Number(rating)
+    if (!stars || stars < 1 || stars > 5) {
       return res.status(400).json({ message: 'Puan 1 ile 5 arasında olmalıdır.' })
     }
 
     const comment = await Comment.create({
       product:  productId,
       user:     req.user.id,
-      userName: req.user.firstName,
+      userName: req.user.firstName || 'Kullanıcı',
       text:     text.trim(),
-      rating:   Number(rating),
+      rating:   stars,
     })
 
     return res.status(201).json({ comment })
@@ -33,7 +37,9 @@ router.post('/products/:productId/comments', authMiddleware, async (req, res) =>
   }
 })
 
-// GET /api/products/:productId/comments — ürüne ait yorumlar
+// ─────────────────────────────────────────────
+// GET /api/comments/products/:productId/comments — Ürüne ait yorumlar
+// ─────────────────────────────────────────────
 router.get('/products/:productId/comments', async (req, res) => {
   try {
     const comments = await Comment.find({ product: req.params.productId })
@@ -46,7 +52,9 @@ router.get('/products/:productId/comments', async (req, res) => {
   }
 })
 
-// DELETE /api/comments/:commentId — sadece yorumu yazan silebilir
+// ─────────────────────────────────────────────
+// DELETE /api/comments/:commentId — Yorum sil (sadece yazan kullanıcı)
+// ─────────────────────────────────────────────
 router.delete('/:commentId', authMiddleware, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.commentId)
@@ -54,7 +62,7 @@ router.delete('/:commentId', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Yorum bulunamadı.' })
     }
 
-    if (comment.user.toString() !== req.user.id) {
+    if (comment.user.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Bu yorumu silemezsiniz.' })
     }
 

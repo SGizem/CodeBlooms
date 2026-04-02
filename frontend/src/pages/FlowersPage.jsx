@@ -9,7 +9,7 @@ const CATEGORIES = ['Tümü', 'Güller', 'Orkideler', 'Papatyalar', 'Lilyumlar',
 
 export default function FlowersPage() {
   const cart = useContext(CartContext)
-  const { products } = useProducts()
+  const { products, loading } = useProducts()
   const [searchParams, setSearchParams] = useSearchParams()
   const urlCategory = searchParams.get('category')
 
@@ -76,20 +76,35 @@ export default function FlowersPage() {
         </div>
 
         {/* Product grid */}
-        <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" id="flowers-grid">
-          {filtered.map((flower) => (
-            <Link key={flower.id} to={`/flowers/${flower.id}`} className="block">
-              <FlowerCard
-                {...flower}
-                onAddToCart={(id) => {
-                  cart.addToCart(id, 1)
-                }}
-              />
-            </Link>
-          ))}
-        </div>
+        {loading ? (
+          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" id="flowers-grid">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-[#EDE8DE] bg-white overflow-hidden animate-pulse">
+                <div className="h-56 bg-[#EDE8DE]" />
+                <div className="p-4 space-y-3">
+                  <div className="h-4 bg-[#EDE8DE] rounded w-3/4" />
+                  <div className="h-3 bg-[#EDE8DE] rounded w-1/2" />
+                  <div className="h-8 bg-[#EDE8DE] rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" id="flowers-grid">
+            {filtered.map((flower) => (
+              <Link key={flower.id} to={`/flowers/${flower.id}`} className="block">
+                <FlowerCard
+                  {...flower}
+                  onAddToCart={(id) => {
+                    cart.addToCart(id, 1)
+                  }}
+                />
+              </Link>
+            ))}
+          </div>
+        )}
 
-        {filtered.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="mt-10 rounded-xl border border-[#EDE8DE] bg-white p-8 text-center">
             <div className="text-3xl" aria-hidden="true">🔍</div>
             <p className="mt-3 font-body text-sm text-[#1A1A1A]/60">

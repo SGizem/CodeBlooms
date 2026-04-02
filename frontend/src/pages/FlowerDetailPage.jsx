@@ -1,20 +1,12 @@
-import { useContext, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Star, Trash2, ShoppingCart } from 'lucide-react'
 import { CartContext } from '../context/CartContext'
 import { useProducts } from '../context/ProductsContext'
+import { useComments } from '../context/CommentsContext'
+import { useAuth } from '../context/AuthContext'
 
 const FALLBACK = 'https://images.unsplash.com/photo-1487530811015-780780b58c25?w=600&q=80'
-const CURRENT_USER = 'mock-user-123'
-
-const INITIAL_COMMENTS = [
-  { id: 1, userId: 'other-1', userName: 'Elif T.', rating: 5,
-    text: 'Harika bir buket, çok taze geldi ve kokusu muhteşemdi!', date: '20 Mart 2026' },
-  { id: 2, userId: CURRENT_USER, userName: 'Sen', rating: 4,
-    text: 'Çok beğendim, ambalajı da çok şıktı.', date: '18 Mart 2026' },
-  { id: 3, userId: 'other-2', userName: 'Mehmet K.', rating: 5,
-    text: 'Annem çok sevdi, kesinlikle tavsiye ederim.', date: '15 Mart 2026' },
-]
 
 function StarRow({ count, interactive = false, hovered = 0, onHover, onLeave, onClick }) {
   return (
@@ -46,34 +38,49 @@ function StarRow({ count, interactive = false, hovered = 0, onHover, onLeave, on
 }
 
 function CommentsBlock({ productId }) {
-  const [comments, setComments] = useState(() =>
-    INITIAL_COMMENTS.map(c => ({ ...c, productId }))
-  )
+  const { currentUser } = useAuth()
+  const { commentsByProductId, fetchCommentsForProduct, addComment, deleteComment } = useComments()
+
   const [hoverRating, setHoverRating] = useState(0)
   const [newRating, setNewRating] = useState(0)
   const [newText, setNewText] = useState('')
   const [formError, setFormError] = useState('')
+  const [submitLoading, setSubmitLoading] = useState(false)
+
+  // Sayfa açıldığında API'den yorumları çek
+  useEffect(() => {
+    if (productId) {
+      fetchCommentsForProduct(productId)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId])
+
+  const comments = commentsByProductId.get(String(productId)) ?? []
 
   const avgRating = comments.length
     ? Math.round(comments.reduce((s, c) => s + c.rating, 0) / comments.length)
     : 0
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!newRating) { setFormError('Lütfen bir puan seçin.'); return }
     if (!newText.trim()) { setFormError('Lütfen yorum yazın.'); return }
+    if (!currentUser) { setFormError('Yorum yazmak için giriş yapmalısınız.'); return }
+
     setFormError('')
-    setComments(prev => [{
-      id: Date.now(), userId: CURRENT_USER, userName: 'Sen',
-      rating: newRating, text: newText.trim(),
-      date: new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }),
-      productId,
-    }, ...prev])
+    setSubmitLoading(true)
+    const res = await addComment(productId, { text: newText.trim(), rating: newRating })
+    setSubmitLoading(false)
+
+    if (!res.ok) {
+      setFormError(res.error || 'Yorum eklenemedi.')
+      return
+    }
     setNewRating(0)
     setNewText('')
   }
 
-  function handleDelete(id) {
-    setComments(prev => prev.filter(c => c.id !== id))
+  async function handleDelete(commentId) {
+    await deleteComment(productId, commentId)
   }
 
   return (
@@ -116,10 +123,10 @@ function CommentsBlock({ productId }) {
         <button
           type="button"
           onClick={handleAdd}
-          disabled={!newRating || !newText.trim()}
+          disabled={!newRating || !newText.trim() || submitLoading}
           className="mt-4 px-6 py-3 rounded-full bg-[#7B1C3E] text-white font-jost text-sm tracking-wider hover:bg-[#5a1530] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Yorumu Gönder
+          {submitLoading ? 'Gönderiliyor...' : 'Yorumu Gönder'}
         </button>
       </div>
 
@@ -135,12 +142,12 @@ function CommentsBlock({ productId }) {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3 mb-1">
-                    <span className="font-jost font-semibold text-[#1A1A1A]">{c.userName}</span>
-                    <span className="text-gray-400 text-xs font-jost">{c.date}</span>
+                    <span className="font-jost font-semibold text-[#1A1A1A]">{c.authorName}</span>
+                    <span className="text-gray-400 text-xs font-jost">{c.createdAt}</span>
                   </div>
                   <StarRow count={c.rating} />
                 </div>
-                {c.userId === CURRENT_USER && (
+                {currentUser && c.userId === String(currentUser._id || currentUser.id) && (
                   <button
                     type="button"
                     onClick={() => handleDelete(c.id)}
@@ -164,8 +171,7 @@ export default function FlowerDetailPage() {
   const { id } = useParams()
   const cart = useContext(CartContext)
   const { productById } = useProducts()
-  const flowerId = Number(id)
-
+  const flowerId = String(id)
   const flower = useMemo(() => {
     return productById.get(flowerId) ?? null
   }, [flowerId, productById])

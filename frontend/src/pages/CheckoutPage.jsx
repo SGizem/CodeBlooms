@@ -13,13 +13,13 @@ export default function CheckoutPage() {
   const cart = useContext(CartContext)
   const { items, cartCount, clearCart } = cart
   const { productById } = useProducts()
-  const { createOrder } = useOrders()
+  const { addOrder } = useOrders()
   const navigate = useNavigate()
 
   const cartLines = useMemo(() => {
     return Object.entries(items ?? {})
       .map(([idRaw, qtyRaw]) => {
-        const id = Number(idRaw)
+        const id = String(idRaw)
         const product = productById?.get?.(id) ?? null
         const qty = Number(qtyRaw)
         return product ? { product, qty } : null
@@ -85,24 +85,39 @@ export default function CheckoutPage() {
     return ''
   }
 
-  function onSubmit(e) {
+  async function onSubmit(e) {
     e.preventDefault()
     setError('')
     const msg = validate()
     if (msg) { setError(msg); return }
 
     const gift = isNoteAdded ? giftNote.trim() : ''
-    const res = createOrder({
-      cartItems: items,
-      productsById: productById,
-      buyer,
-      giftNote: gift || null,
-    })
 
-    if (!res.ok) { setError(res.error || 'Sipariş oluşturulamadı.'); return }
+    // Backend orderManageRoutes.js beklediği format:
+    // POST /api/orders → { address, recipient, items (opsiyonel), giftNote }
+    // Backend zaten sepeti MongoDB'den çekiyor, ama items gönderilebilir
+    const orderData = {
+      address: buyer.address,
+      recipient: buyer.fullName,
+      giftNote: gift || '',
+      // items opsiyonel: backend cart'tan alır ama override edebiliriz
+      items: cartLines.map(line => ({
+        product: line.product.id || line.product._id,
+        quantity: line.qty,
+      })),
+    }
 
+    const res = await addOrder(orderData)
+
+    if (!res.ok) {
+      setError(res.error || 'Sipariş oluşturulamadı.')
+      return
+    }
+
+    // Başarı: sepeti temizle ve siparişler sayfasına yönlendir
     clearCart()
-    navigate(`/orders/${res.order.id}`)
+    alert('🎉 Siparişiniz başarıyla oluşturuldu! Bizi tercih ettiğiniz için teşekkür ederiz.')
+    navigate('/orders')
   }
 
   const PAYMENT_METHODS = ['Kredi Kartı', 'Banka Kartı', 'Kapıda Ödeme']
@@ -227,18 +242,16 @@ export default function CheckoutPage() {
               <div className="bg-white rounded-2xl p-6 shadow-sm">
                 <h3 className="font-display text-2xl font-bold text-[#7B1C3E] mb-5">💳 Ödeme Bilgileri</h3>
 
-                {/* Method selector */}
                 <div className="flex gap-3 mb-6">
                   {PAYMENT_METHODS.map(method => (
                     <button
                       key={method}
                       type="button"
                       onClick={() => setPaymentMethod(method)}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-jost font-medium border transition-all ${
-                        paymentMethod === method
-                          ? 'bg-[#7B1C3E] text-white border-[#7B1C3E]'
-                          : 'border-[#EDE8DE] text-[#1A1A1A]/60 hover:border-[#7B1C3E]'
-                      }`}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-jost font-medium border transition-all ${paymentMethod === method
+                        ? 'bg-[#7B1C3E] text-white border-[#7B1C3E]'
+                        : 'border-[#EDE8DE] text-[#1A1A1A]/60 hover:border-[#7B1C3E]'
+                        }`}
                     >
                       {method}
                     </button>

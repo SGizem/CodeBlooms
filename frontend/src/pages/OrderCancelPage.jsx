@@ -5,9 +5,14 @@ import { useOrders } from '../context/OrdersContext'
 export default function OrderCancelPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { orderById, cancelOrder } = useOrders()
 
-  const order = useMemo(() => orderById.get(id) ?? null, [id, orderById])
+  // orderById YERİNE orders ALINDI
+  const { orders, cancelOrder } = useOrders()
+
+  // get(id) YERİNE find KULLANILDI
+  const order = useMemo(() => {
+    return orders?.find(o => String(o.id) === String(id) || String(o._id) === String(id)) ?? null
+  }, [id, orders])
   const [confirmText, setConfirmText] = useState('')
   const [error, setError] = useState('')
 
@@ -65,9 +70,6 @@ export default function OrderCancelPage() {
 
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
           <div className="rounded-lg border border-[#1A1A1A]/10 bg-white p-6 lg:col-span-2">
-            <div className="rounded-md border border-red-500/20 bg-red-500/5 p-4 font-body text-sm text-red-700">
-              Bu işlem mock olarak iptal eder. Yerel veriler güncellenir.
-            </div>
 
             <div className="mt-5 space-y-4">
               <div>
@@ -117,7 +119,7 @@ export default function OrderCancelPage() {
                 Toplam: <span className="font-semibold text-bordo">{order.total}₺</span>
               </div>
               <div>
-                Ürün: <span className="font-semibold text-[#1A1A1A]">{order.items.length}</span>
+                Ürün: <span className="font-semibold text-[#1A1A1A]">{order?.items?.length || 0}</span>
               </div>
               <div>
                 Tarih: <span className="font-semibold text-[#1A1A1A]">{order.date}</span>

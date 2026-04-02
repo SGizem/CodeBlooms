@@ -50,10 +50,10 @@ export default function ProductsAdminPage() {
     setAddOpen(true)
   }
 
-  function submitAdd(e) {
+  async function submitAdd(e) {
     e.preventDefault()
     setError('')
-    const res = addProduct({
+    const res = await addProduct({
       name: form.name,
       description: form.description,
       category: form.category,
@@ -82,7 +82,7 @@ export default function ProductsAdminPage() {
           <div>
             <h1 className="font-display text-4xl font-bold text-bordo">Ürün Yönetimi</h1>
             <div className="mt-2 font-body text-sm text-[#1A1A1A]/70">
-              Ürünleri ekleyin veya kaldırın. (Mock + localStorage)
+              Ürünleri ekleyin veya kaldırın.
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -275,7 +275,7 @@ export default function ProductsAdminPage() {
         }
       >
         <div className="font-body text-sm text-[#1A1A1A]/80">
-          Bu işlem ürünü listeden kaldırır. Mock olarak localStorage verisi güncellenir.
+          Bu işlem ürünü listeden kaldırır. Onaylıyor musunuz?
         </div>
       </Modal>
     </div>
