@@ -13,7 +13,7 @@ export default function CheckoutPage() {
   const cart = useContext(CartContext)
   const { items, cartCount, clearCart } = cart
   const { productById } = useProducts()
-  const { addOrder } = useOrders()
+  const { addOrder, addGiftNote } = useOrders()
   const navigate = useNavigate()
 
   const cartLines = useMemo(() => {
@@ -107,11 +107,24 @@ export default function CheckoutPage() {
       })),
     }
 
+    // ── EDA GEREKSİNİM 5: Sipariş Oluşturma — POST /api/orders ──
     const res = await addOrder(orderData)
 
     if (!res.ok) {
       setError(res.error || 'Sipariş oluşturulamadı.')
       return
+    }
+
+    console.log('✅ EDA GEREKSİNİM 5 — Sipariş Oluşturma MongoDB\'ye kaydedildi:', res.orderId)
+
+    // ── EDA GEREKSİNİM 7: Hediye Notu Ekleme — POST /api/orders/:orderId/notes ──
+    if (gift && res.orderId) {
+      const noteRes = await addGiftNote(res.orderId, gift)
+      if (noteRes.ok) {
+        console.log('✅ EDA GEREKSİNİM 7 — Hediye Notu MongoDB\'ye kaydedildi')
+      } else {
+        console.log('❌ Hediye notu ekleme hatası:', noteRes.error)
+      }
     }
 
     // Başarı: sepeti temizle ve siparişler sayfasına yönlendir

@@ -1,16 +1,14 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useOrders } from '../context/OrdersContext'
-import { updateOrderAPI, cancelOrderAPI } from '../api'
 
 const FALLBACK = 'https://images.unsplash.com/photo-1487530811015-780780b58c25?w=200&q=80'
 
 function StatusBadge({ status, statusLabel }) {
-  const s = String(status).toLowerCase()
   const sl = String(statusLabel || status).toLowerCase()
 
-  if (sl.includes('hazırlanıyor') || sl.includes('oluşturuldu') || s.includes('oluşturuldu')) {
+  if (sl.includes('hazırlanıyor') || sl.includes('oluşturuldu') || sl.includes('pending')) {
     return (
       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-jost font-semibold">
         <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
@@ -18,15 +16,15 @@ function StatusBadge({ status, statusLabel }) {
       </span>
     )
   }
-  if (sl.includes('yolda') || sl.includes('kargoda')) {
+  if (sl.includes('yolda') || sl.includes('kargoda') || sl.includes('shipped')) {
     return (
       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-jost font-semibold">
         <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-        {statusLabel || 'Yolda'} 🚚
+        {statusLabel || 'Kargoda'} 🚚
       </span>
     )
   }
-  if (sl.includes('teslim')) {
+  if (sl.includes('teslim') || sl.includes('delivered')) {
     return (
       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-jost font-semibold">
         <span className="w-2 h-2 bg-green-500 rounded-full" />
@@ -34,7 +32,7 @@ function StatusBadge({ status, statusLabel }) {
       </span>
     )
   }
-  if (sl.includes('iptal')) {
+  if (sl.includes('iptal') || sl.includes('cancel')) {
     return (
       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-jost font-semibold">
         <span className="w-2 h-2 bg-gray-400 rounded-full" />
@@ -50,24 +48,27 @@ function StatusBadge({ status, statusLabel }) {
   )
 }
 
-// Gereksinime göre güncellenmiş kontrol fonksiyonu
 function isActive(status) {
   const s = String(status || '').toLowerCase()
-  // Eğer sipariş iptal, kargoda, yolda veya teslim durumundaysa false döner (butonları gizler)
-  if (s.includes('iptal') || s.includes('cancel') || s.includes('teslim') || s.includes('kargo') || s.includes('yolda')) {
+  if (
+    s.includes('iptal') || s.includes('cancel') ||
+    s.includes('teslim') || s.includes('delivered') ||
+    s.includes('kargo') || s.includes('shipped') ||
+    s.includes('yolda')
+  ) {
     return false
   }
-  return true // Sadece "hazırlanıyor", "onaylandı" gibi durumlarda true döner
+  return true
 }
 
 function EditModal({ order, onSave, onClose }) {
-  const [address, setAddress] = useState(order.buyer?.address ?? order.address ?? '')
-  const [recipient, setRecipient] = useState(order.buyer?.fullName ?? order.recipient ?? '')
-  const [giftNote, setGiftNote] = useState(order.giftNote ?? '')
+  const [address,   setAddress]   = useState(order.buyer?.address   ?? order.address   ?? '')
+  const [recipient, setRecipient] = useState(order.buyer?.fullName  ?? order.recipient ?? '')
+  const [giftNote,  setGiftNote]  = useState(order.giftNote ?? '')
 
   function handleSave() {
     onSave(order.id, {
-      buyer: { ...order.buyer, address, fullName: recipient },
+      buyer:    { ...order.buyer, address, fullName: recipient },
       giftNote: giftNote.trim() || null,
     })
     onClose()
@@ -150,20 +151,21 @@ function OrderCard({ order, onEdit, onCancel, onDeleteGiftNote }) {
   const [noteVisible, setNoteVisible] = useState(true)
   const statusLabel = order.statusLabel || order.status
 
+  // noteId: notes array'den geliyorsa gerçek MongoDB _id, yoksa null
+  const noteId = order.firstNoteId || null
+
   const handleNoteDelete = () => {
     setNoteVisible(false)
-    setTimeout(() => onDeleteGiftNote(order.id), 300)
+    setTimeout(() => onDeleteGiftNote(order.id, noteId), 300)
   }
 
-  const firstItem = order.items?.[0]
-  const buyerName = order.buyer?.fullName || order.recipient || ''
-  const buyerAddress = order.buyer?.address || order.address || ''
+  const firstItem   = order.items?.[0]
+  const buyerName   = order.buyer?.fullName || order.recipient || ''
+  const buyerAddress = order.buyer?.address || order.address  || ''
 
   return (
     <article className="rounded-2xl border border-[#EDE8DE] bg-white p-6 shadow-sm transition-shadow duration-300 hover:shadow-lg">
-      {/* Product image + order info side by side */}
       <div className="flex gap-4 items-start">
-        {/* Product image */}
         <img
           src={firstItem?.image || FALLBACK}
           alt={firstItem?.name ?? 'Ürün'}
@@ -172,40 +174,32 @@ function OrderCard({ order, onEdit, onCancel, onDeleteGiftNote }) {
         />
 
         <div className="flex-1 min-w-0">
-          {/* Status badge + date */}
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <StatusBadge status={order.status} statusLabel={statusLabel} />
             <span className="font-jost text-xs text-[#1A1A1A]/50 ml-auto">{order.date}</span>
           </div>
 
-          {/* Order ID */}
           <p className="font-jost text-sm font-semibold text-[#7B1C3E]">#{order.id}</p>
 
-          {/* Items list */}
           {order.items?.map((item, i) => (
             <p key={i} className="font-jost text-sm text-[#1A1A1A]/80 mt-1">
               {item.name} × {item.qty} — {item.price}₺
             </p>
           ))}
 
-          {/* Total */}
           <p className="font-jost font-semibold text-[#1A1A1A] mt-2">Toplam: {order.total}₺</p>
         </div>
       </div>
 
-      {/* Address + Recipient */}
       {(buyerAddress || buyerName) && (
         <div className="mt-4 text-xs font-jost text-[#1A1A1A]/60 space-y-0.5 border-t border-[#EDE8DE] pt-4">
-          {buyerName && <div>Alıcı: <span className="font-semibold text-[#1A1A1A]/80">{buyerName}</span></div>}
+          {buyerName    && <div>Alıcı: <span className="font-semibold text-[#1A1A1A]/80">{buyerName}</span></div>}
           {buyerAddress && <div>Adres: {buyerAddress}</div>}
         </div>
       )}
 
-      {/* Gift note */}
       {order.giftNote && (
-        <div
-          className={`mt-3 flex items-start gap-2 rounded-xl bg-[#F5F0E8] px-4 py-3 transition-opacity duration-300 ${noteVisible ? 'opacity-100' : 'opacity-0'}`}
-        >
+        <div className={`mt-3 flex items-start gap-2 rounded-xl bg-[#F5F0E8] px-4 py-3 transition-opacity duration-300 ${noteVisible ? 'opacity-100' : 'opacity-0'}`}>
           <span className="text-sm">💌</span>
           <span className="flex-1 font-jost text-xs text-[#1A1A1A]/70">{order.giftNote}</span>
           <button
@@ -219,7 +213,6 @@ function OrderCard({ order, onEdit, onCancel, onDeleteGiftNote }) {
         </div>
       )}
 
-      {/* Actions */}
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <Link
           to={`/orders/${order.id}`}
@@ -251,17 +244,15 @@ function OrderCard({ order, onEdit, onCancel, onDeleteGiftNote }) {
 }
 
 export default function OrdersPage() {
-  const { orders, updateOrder, cancelOrder } = useOrders()
+  const { orders, updateOrder, cancelOrder, deleteGiftNote } = useOrders()
   const [tab, setTab] = useState('active')
   const [editingOrder, setEditingOrder] = useState(null)
   const [cancelId, setCancelId] = useState(null)
 
-  // ── GEREKSİNİM 6: Sipariş Listeleme — GET /api/orders/{userId} ──
-  // OrdersContext zaten useEffect ile MongoDB'den çekiyor.
-  // Burada aynı veriyi normalize ederek kullanıyoruz.
+  // buyer normalizasyonu — OrdersContext'te düzeltildi, burada güvenli fallback
   const sourceOrders = orders.map(o => ({
     ...o,
-    buyer: o.buyer || { fullName: o.recipient || '', address: o.address || '' },
+    buyer: o.buyer ?? { fullName: o.recipient || '', address: o.address || '' },
   }))
 
   const activeOrders = useMemo(
@@ -274,50 +265,43 @@ export default function OrdersPage() {
   )
   const displayOrders = tab === 'active' ? activeOrders : pastOrders
 
-  // ── GEREKSİNİM 5: Sipariş Güncelleme — PUT /api/orders/{orderId} ──
+  // ── GEREKSİNİM 9: Sipariş Güncelleme — PUT /api/orders/:orderId ──
   async function handleSave(orderId, updates) {
     const payload = {}
     if (updates.buyer?.address  !== undefined) payload.address   = updates.buyer.address
     if (updates.buyer?.fullName !== undefined) payload.recipient = updates.buyer.fullName
     if ('giftNote' in updates)                 payload.giftNote  = updates.giftNote ?? ''
 
-    // 1. Context üzerinden API'ye gönder (OrdersContext.updateOrder → api.put)
     const res = await updateOrder(orderId, payload)
     if (res?.ok) {
-      console.log('✅ GEREKSİNİM 5 — Sipariş Güncelleme MongoDB\'ye kaydedildi')
+      console.log('✅ GEREKSİNİM 9 — Sipariş Güncelleme MongoDB\'ye kaydedildi')
     } else {
       console.log('❌ Sipariş güncelleme hatası:', res?.error)
     }
     setEditingOrder(null)
   }
 
-  // ── EDA GEREKSİNİM 6: Sipariş İptali — DELETE /api/orders/{orderId}/cancel ──
+  // ── EDA GEREKSİNİM 6: Sipariş İptali — DELETE /api/orders/:orderId/cancel ──
   async function handleConfirmCancel() {
     if (!cancelId) return
-    // Context üzerinden API'ye gönder (OrdersContext.cancelOrder → api.delete)
     const res = await cancelOrder(cancelId)
     if (res?.ok) {
       console.log('✅ EDA GEREKSİNİM 6 — Sipariş İptali MongoDB\'ye kaydedildi')
     } else {
-      console.log('❌ İptal API hatası:', res?.error)
+      console.log('❌ İptal hatası:', res?.error)
     }
     setCancelId(null)
   }
 
   // ── EDA GEREKSİNİM 8: Hediye Notu Silme ──
-  async function handleDeleteGiftNote(orderId) {
-    // Context üzerinden API'ye gönder
-    const res = await updateOrder(orderId, { giftNote: '' })
+  // DELETE /api/orders/:orderId/notes/:noteId (noteId varsa)
+  // + PUT /api/orders/:orderId { giftNote: '' } (giftNote field'ı da temizler)
+  async function handleDeleteGiftNote(orderId, noteId) {
+    const res = await deleteGiftNote(orderId, noteId)
     if (res?.ok) {
-      console.log('✅ EDA GEREKSİNİM 8 — Hediye Notu Silme MongoDB\'ye kaydedildi')
+      console.log('✅ EDA GEREKSİNİM 8 — Hediye Notu Silme MongoDB\'den silindi')
     } else {
-      // Fallback: direkt API çağrısı
-      try {
-        await updateOrderAPI(orderId, { giftNote: '' })
-        console.log('✅ EDA GEREKSİNİM 8 — Hediye Notu Silme (fallback) MongoDB\'ye kaydedildi')
-      } catch (err) {
-        console.log('❌ Hediye notu sil hatası:', err.message)
-      }
+      console.log('❌ Hediye notu sil hatası:', res?.error)
     }
   }
 
@@ -346,20 +330,17 @@ export default function OrdersPage() {
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <h1 className="font-display text-4xl font-bold text-[#7B1C3E]">Siparişlerim</h1>
 
-        {/* Tabs */}
         <div className="mt-8 flex border-b border-[#EDE8DE]">
           <button type="button" onClick={() => setTab('active')}
             className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${tab === 'active'
               ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
-              : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
-              }`}>
+              : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'}`}>
             Aktif Siparişlerim ({activeOrders.length})
           </button>
           <button type="button" onClick={() => setTab('past')}
             className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${tab === 'past'
               ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
-              : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
-              }`}>
+              : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'}`}>
             Geçmiş Siparişlerim ({pastOrders.length})
           </button>
         </div>
