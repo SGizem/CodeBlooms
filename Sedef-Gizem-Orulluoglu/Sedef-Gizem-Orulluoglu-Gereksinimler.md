@@ -3,8 +3,8 @@
    - **Açıklama:** Yeni müşterilerin alışveriş yapabilmek için sisteme kayıt olmasını sağlar. Ad, soyad, e-posta ve şifre gibi kişisel bilgilerin alınarak veritabanına güvenli bir şekilde kaydedilmesini içerir.
 
 2. **Kullanıcı Girişi**
-   -**API Metodu:** `POST /api/users/login`
-   -**Açıklama:** Siteye daha önce kayıt olan kullanıcıların giriş yapabilmesini sağlar. Kullanıcıdan e-posta ve şifre bilgileri alınır.
+   - **API Metodu:** `POST /api/users/login`
+   - **Açıklama:** Siteye daha önce kayıt olan kullanıcıların giriş yapabilmesini sağlar. Kullanıcıdan e-posta ve şifre bilgileri alınır.
    
 3. **Ürün Ekleme**
    - **API Metodu:** `POST /api/products`
