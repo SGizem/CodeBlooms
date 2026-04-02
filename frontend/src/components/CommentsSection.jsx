@@ -25,7 +25,7 @@ function StarRating({ rating, onRate, readonly = false }) {
 
 export default function CommentsSection({ productId }) {
   const { commentsByProductId, addComment, deleteComment } = useComments()
-  const pid = Number(productId)
+  const pid = String(productId)
   const comments = commentsByProductId.get(pid) ?? []
 
   const [form, setForm] = useState({ authorName: '', text: '', rating: 0 })

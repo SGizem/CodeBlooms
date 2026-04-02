@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ChevronDown, ShoppingCart, User, Truck } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ChevronDown, ShoppingCart, User, Truck, LogOut, LogIn } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 export default function Navbar({ cartCount = 0 }) {
   const [catOpen, setCatOpen] = useState(false)
+  const [userOpen, setUserOpen] = useState(false)
   const catRef = useRef(null)
+  const userRef = useRef(null)
+  const { currentUser, logout } = useAuth()
+  const navigate = useNavigate()
 
   const categories = useMemo(
     () => [
@@ -17,14 +22,20 @@ export default function Navbar({ cartCount = 0 }) {
     []
   )
 
-
   useEffect(() => {
     function onDocClick(e) {
       if (catRef.current && !catRef.current.contains(e.target)) setCatOpen(false)
+      if (userRef.current && !userRef.current.contains(e.target)) setUserOpen(false)
     }
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [])
+
+  function handleLogout() {
+    logout()
+    setUserOpen(false)
+    navigate('/')
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full" id="site-header">
@@ -104,6 +115,7 @@ export default function Navbar({ cartCount = 0 }) {
 
             {/* Right actions */}
             <div className="flex items-center gap-5">
+              {/* Sepet ikonu */}
               <Link
                 to="/cart"
                 className="group relative flex items-center gap-2 transition-opacity hover:opacity-80"
@@ -120,14 +132,75 @@ export default function Navbar({ cartCount = 0 }) {
 
               <div className="hidden h-5 w-px bg-[#1A1A1A]/10 sm:block" />
 
-              <Link
-                to="/register"
-                className="hidden items-center gap-2 font-body text-[13px] font-medium text-[#1A1A1A]/70 transition-colors hover:text-bordo sm:flex"
-                id="nav-register"
-              >
-                <User className="h-4 w-4" strokeWidth={1.5} />
-                <span>Kayıt Ol</span>
-              </Link>
+              {/* Kullanıcı menüsü: giriş yapılmışsa dropdown, yapılmamışsa linkler */}
+              {currentUser ? (
+                <div className="relative hidden sm:block" ref={userRef}>
+                  <button
+                    type="button"
+                    onClick={() => setUserOpen((v) => !v)}
+                    className="flex items-center gap-2 font-body text-[13px] font-medium text-[#1A1A1A]/70 transition-colors hover:text-bordo"
+                    id="nav-user-menu"
+                  >
+                    <User className="h-4 w-4" strokeWidth={1.5} />
+                    <span>{currentUser.firstName}</span>
+                    <ChevronDown
+                      className={`h-3 w-3 transition-transform duration-200 ${userOpen ? 'rotate-180' : ''}`}
+                      strokeWidth={2}
+                    />
+                  </button>
+
+                  {userOpen && (
+                    <div className="absolute right-0 top-[calc(100%+12px)] z-50 w-44 rounded-lg border border-[#1A1A1A]/8 bg-white p-2 shadow-xl shadow-black/5">
+                      <Link
+                        to="/orders"
+                        onClick={() => setUserOpen(false)}
+                        className="block rounded-md px-4 py-2.5 font-body text-sm text-[#1A1A1A]/80 transition-colors hover:bg-krem hover:text-bordo"
+                        id="user-menu-orders"
+                      >
+                        Siparişlerim
+                      </Link>
+                      {currentUser.role === 'admin' && (
+                        <Link
+                          to="/admin/products"
+                          onClick={() => setUserOpen(false)}
+                          className="block rounded-md px-4 py-2.5 font-body text-sm text-[#1A1A1A]/80 transition-colors hover:bg-krem hover:text-bordo"
+                          id="user-menu-admin"
+                        >
+                          Admin Panel
+                        </Link>
+                      )}
+                      <hr className="my-1 border-[#1A1A1A]/8" />
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 rounded-md px-4 py-2.5 font-body text-sm text-red-600 transition-colors hover:bg-red-50"
+                        id="nav-logout-btn"
+                      >
+                        <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        Çıkış Yap
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="hidden items-center gap-3 sm:flex">
+                  <Link
+                    to="/login"
+                    className="flex items-center gap-1.5 font-body text-[13px] font-medium text-[#1A1A1A]/70 transition-colors hover:text-bordo"
+                    id="nav-login"
+                  >
+                    <LogIn className="h-4 w-4" strokeWidth={1.5} />
+                    <span>Giriş Yap</span>
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="rounded-full bg-bordo px-4 py-1.5 font-body text-[13px] font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+                    id="nav-register"
+                  >
+                    Kayıt Ol
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -135,3 +208,5 @@ export default function Navbar({ cartCount = 0 }) {
     </header>
   )
 }
+
+

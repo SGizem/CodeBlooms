@@ -1,156 +1,136 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { mockOrders } from '../data/mockOrders'
-
-const ORDERS_VERSION = 2
+import { createContext, useState, useEffect, useContext } from 'react'
+import api from '../api'
 
 export const OrdersContext = createContext(null)
 
-function normalizeOrder(raw) {
-  if (!raw) return null
-  const id = String(raw.id ?? '').trim()
-  const date = String(raw.date ?? '').trim()
-  const status = String(raw.status ?? '').trim()
-  const total = Number(raw.total)
-  const giftNote = raw.giftNote == null ? null : String(raw.giftNote)
-  const buyer = raw.buyer ?? null
-  const items = Array.isArray(raw.items) ? raw.items : []
-  if (!id) return null
-
-  return {
-    id,
-    date: date || new Date().toISOString().slice(0, 10),
-    status: status || 'Oluşturuldu',
-    total: Number.isFinite(total) ? total : 0,
-    items,
-    giftNote,
-    buyer,
-    updatedAt: raw.updatedAt ? String(raw.updatedAt) : null,
-    createdAt: raw.createdAt ? String(raw.createdAt) : null,
-  }
-}
-
 export function OrdersProvider({ children }) {
-  const [orders, setOrders] = useState(() => {
+  const [orders, setOrders] = useState([])
+
+  // Backend'den kullanıcının siparişlerini getir
+  const fetchOrders = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    // Token'dan userId'yi çöz (backend JWT içinde id gönderir)
+    let userId = null
     try {
-      const ver = localStorage.getItem('cb_orders_ver')
-      if (ver !== String(ORDERS_VERSION)) {
-        localStorage.removeItem('cb_orders')
-        localStorage.setItem('cb_orders_ver', String(ORDERS_VERSION))
-        return mockOrders.map(normalizeOrder).filter(Boolean)
-      }
-      const raw = localStorage.getItem('cb_orders')
-      if (!raw) return mockOrders.map(normalizeOrder).filter(Boolean)
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const normalized = parsed.map(normalizeOrder).filter(Boolean)
-        if (normalized.length > 0) return normalized
-      }
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      userId = payload.id
     } catch {
-      // ignore
+      return
     }
-    return mockOrders.map(normalizeOrder).filter(Boolean)
-  })
+
+    if (!userId) return
+
+    try {
+      // GET /api/orders/:userId
+      const res = await api.get(`/api/orders/${userId}`)
+      const raw = res.data.orders || res.data || []
+
+      const fetchedOrders = raw.map(order => ({
+        id: String(order._id),
+        date: new Date(order.createdAt).toLocaleDateString('tr-TR'),
+        status: order.status || 'preparing',
+        statusLabel: mapStatusLabel(order.status),
+        total: order.total || order.totalPrice || 0,
+        items: (order.items || order.orderItems || []).map(item => ({
+          name: item.name,
+          qty: item.quantity || item.qty || 1,
+          price: item.price,
+          image: item.imageUrl || item.image || '',
+        })),
+        giftNote: order.giftNote || '',
+        address: order.address || order.shippingAddress?.address || '',
+        recipient: order.recipient || order.shippingAddress?.fullName || '',
+        buyer: order.shippingAddress || null,
+      }))
+      setOrders(fetchedOrders)
+    } catch (err) {
+      console.error('Siparişler çekilirken hata:', err)
+    }
+  }
 
   useEffect(() => {
+    fetchOrders()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function mapStatusLabel(status) {
+    const map = {
+      preparing: 'Hazırlanıyor',
+      shipped: 'Yolda',
+      delivered: 'Teslim Edildi',
+      cancelled: 'İptal Edildi',
+    }
+    return map[status] || status || 'Alındı'
+  }
+
+  // POST /api/orders — sipariş oluştur (backend: address + recipient + items + giftNote)
+  const addOrder = async (orderData) => {
     try {
-      localStorage.setItem('cb_orders', JSON.stringify(orders))
-      localStorage.setItem('cb_orders_ver', String(ORDERS_VERSION))
-    } catch {
-      // ignore
+      const res = await api.post('/api/orders', orderData)
+      await fetchOrders()
+      return { ok: true, orderId: res.data.order?._id || res.data._id }
+    } catch (err) {
+      console.error('Sipariş kaydedilemedi:', err)
+      return { ok: false, error: err.response?.data?.message || 'Sipariş oluşturulamadı.' }
     }
-  }, [orders])
-
-  const orderById = useMemo(() => {
-    const map = new Map()
-    for (const o of orders) map.set(o.id, o)
-    return map
-  }, [orders])
-
-  function createOrder({ cartItems, productsById, buyer, giftNote }) {
-    if (!buyer) return { ok: false, error: 'Adres bilgileri eksik.' }
-
-    const entries = Object.entries(cartItems ?? {}).filter(([, qty]) => Number(qty) > 0)
-    if (entries.length === 0) return { ok: false, error: 'Sepetiniz boş.' }
-
-    const items = entries.map(([productIdRaw, qtyRaw]) => {
-      const productId = Number(productIdRaw)
-      const product = productsById?.get?.(productId) ?? null
-      if (!product) return null
-      const qty = Number(qtyRaw)
-      return {
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        qty,
-        image: product.image,
-      }
-    })
-
-    const filtered = items.filter(Boolean)
-    if (filtered.length === 0) return { ok: false, error: 'Sepette ürün bulunamadı.' }
-
-    const total = filtered.reduce((sum, it) => sum + it.price * it.qty, 0)
-    const createdAt = new Date().toISOString().slice(0, 10)
-    const id = `SP${String(Date.now()).slice(-8)}`
-
-    const order = {
-      id,
-      date: createdAt,
-      status: 'Oluşturuldu',
-      total,
-      items: filtered,
-      giftNote: giftNote ? String(giftNote).trim() : null,
-      buyer: {
-        fullName: buyer.fullName ?? '',
-        email: buyer.email ?? '',
-        phone: buyer.phone ?? '',
-        address: buyer.address ?? '',
-      },
-      createdAt,
-      updatedAt: createdAt,
-    }
-
-    setOrders((prev) => [order, ...prev])
-    return { ok: true, order }
   }
 
-  function updateOrder(orderId, updates) {
-    const id = String(orderId)
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== id) return o
-        const next = { ...o }
-        if (updates?.buyer) {
-          next.buyer = { ...next.buyer, ...updates.buyer }
+  // PUT /api/orders/:orderId — sipariş güncelle
+  // Backend: { address, recipient, giftNote } bekliyor
+  const updateOrder = async (orderId, updates) => {
+    try {
+      const res = await api.put(`/api/orders/${orderId}`, updates)
+      const updatedOrder = res.data.order
+      // Optimistic: local state güncelle
+      setOrders(prev => prev.map(o => {
+        if (o.id !== orderId) return o
+        return {
+          ...o,
+          address: updatedOrder?.address ?? updates.address ?? o.address,
+          recipient: updatedOrder?.recipient ?? updates.recipient ?? o.recipient,
+          giftNote: updatedOrder?.giftNote ?? updates.giftNote ?? o.giftNote,
         }
-        if ('giftNote' in updates) next.giftNote = updates.giftNote
-        if (updates?.status) next.status = updates.status
-        next.updatedAt = new Date().toISOString()
-        return next
-      })
-    )
+      }))
+      return { ok: true }
+    } catch (err) {
+      console.error('Sipariş güncellenemedi:', err)
+      return { ok: false, error: err.response?.data?.message || 'Güncelleme başarısız.' }
+    }
   }
 
-  function cancelOrder(orderId) {
-    const id = String(orderId)
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== id) return o
-        if (String(o.status).toLowerCase().includes('iptal')) return o
-        return { ...o, status: 'İptal Edildi', updatedAt: new Date().toISOString() }
-      })
-    )
+  // DELETE /api/orders/:orderId/cancel — sipariş iptal
+  const cancelOrder = async (orderId) => {
+    try {
+      await api.delete(`/api/orders/${orderId}/cancel`)
+      // Optimistic: local state güncelle
+      setOrders(prev => prev.map(o =>
+        o.id === orderId
+          ? { ...o, status: 'cancelled', statusLabel: 'İptal Edildi' }
+          : o
+      ))
+      return { ok: true }
+    } catch (err) {
+      console.error('Sipariş iptal edilemedi:', err)
+      return { ok: false, error: err.response?.data?.message || 'İptal başarısız.' }
+    }
   }
 
-  const value = { orders, orderById, createOrder, updateOrder, cancelOrder }
+  const value = {
+    orders,
+    addOrder,
+    fetchOrders,
+    updateOrder,
+    cancelOrder,
+  }
 
   return <OrdersContext.Provider value={value}>{children}</OrdersContext.Provider>
 }
 
 export function useOrders() {
-  const ctx = useContext(OrdersContext)
-  if (!ctx) throw new Error('useOrders must be used inside OrdersProvider')
-  return ctx
-}
-
+  const context = useContext(OrdersContext)
+  if (!context) throw new Error('useOrders must be used within an OrdersProvider')
+  return context
+}

@@ -1,0 +1,299 @@
+{
+  "info": {
+    "_postman_id": "f6e6a0cc-1922-4ab1-841f-f2fdc12f773b",
+    "name": "CodeBlooms - Eda API Testleri",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "50536682",
+    "_collection_link": "https://go.postman.co/collection/50536682-f6e6a0cc-1922-4ab1-841f-f2fdc12f773b?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Sepete Ürün Ekleme (Gereksinim 1)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Yzc2Y2Y4MWJlMjgwOWUzOGE2ZThmZiIsImVtYWlsIjoiZWRhZ29nZWJha2FuMUBnbWFpbC5jb20iLCJyb2xlIjoidXNlciIsImZpcnN0TmFtZSI6IkVkYSIsImlhdCI6MTc3NDY3NzI0MCwiZXhwIjoxNzc1MjgyMDQwfQ.pgX0LsPJqTuio2a0fCwRSjypfzqYRc5c1OJnuQySQiY",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"productId\": \"69c783558c90e9fe80792abf\", \r\n  \"quantity\": 2\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/cart/add",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "cart",
+            "add"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Sepet Güncelleme(Gerek 3)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Yzc2Y2Y4MWJlMjgwOWUzOGE2ZThmZiIsImVtYWlsIjoiZWRhZ29nZWJha2FuMUBnbWFpbC5jb20iLCJyb2xlIjoidXNlciIsImZpcnN0TmFtZSI6IkVkYSIsImlhdCI6MTc3NDY3NzI0MCwiZXhwIjoxNzc1MjgyMDQwfQ.pgX0LsPJqTuio2a0fCwRSjypfzqYRc5c1OJnuQySQiY",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"quantity\": 5}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/cart/items/69c7887b7254e0dc9a7faa5d",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "cart",
+            "items",
+            "69c7887b7254e0dc9a7faa5d"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Listeleme (Gereksinim  4)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Yzc2Y2Y4MWJlMjgwOWUzOGE2ZThmZiIsImVtYWlsIjoiZWRhZ29nZWJha2FuMUBnbWFpbC5jb20iLCJyb2xlIjoidXNlciIsImZpcnN0TmFtZSI6IkVkYSIsImlhdCI6MTc3NDY3NzI0MCwiZXhwIjoxNzc1MjgyMDQwfQ.pgX0LsPJqTuio2a0fCwRSjypfzqYRc5c1OJnuQySQiY",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/cart",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "cart"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Sipariş Oluşturma (Gereksinim 5)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Yzc2Y2Y4MWJlMjgwOWUzOGE2ZThmZiIsImVtYWlsIjoiZWRhZ29nZWJha2FuMUBnbWFpbC5jb20iLCJyb2xlIjoidXNlciIsImZpcnN0TmFtZSI6IkVkYSIsImlhdCI6MTc3NDY3NzI0MCwiZXhwIjoxNzc1MjgyMDQwfQ.pgX0LsPJqTuio2a0fCwRSjypfzqYRc5c1OJnuQySQiY",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n\"address\": \"Antalya, Konyaaltı, Uncalı Mah.\",\r\n\"recipient\": \"Eda Göğebakan\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/orders",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "orders"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Hediye Notu Ekleme (Gereksinim )",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Yzc2Y2Y4MWJlMjgwOWUzOGE2ZThmZiIsImVtYWlsIjoiZWRhZ29nZWJha2FuMUBnbWFpbC5jb20iLCJyb2xlIjoidXNlciIsImZpcnN0TmFtZSI6IkVkYSIsImlhdCI6MTc3NDY3NzI0MCwiZXhwIjoxNzc1MjgyMDQwfQ.pgX0LsPJqTuio2a0fCwRSjypfzqYRc5c1OJnuQySQiY",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"note\": \"İyi ki doğdun!\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/orders/69c789e97254e0dc9a7faa6a/notes",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "orders",
+            "69c789e97254e0dc9a7faa6a",
+            "notes"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Hediye Notu Silme (Gereksinim 8)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Yzc2Y2Y4MWJlMjgwOWUzOGE2ZThmZiIsImVtYWlsIjoiZWRhZ29nZWJha2FuMUBnbWFpbC5jb20iLCJyb2xlIjoidXNlciIsImZpcnN0TmFtZSI6IkVkYSIsImlhdCI6MTc3NDY3NzI0MCwiZXhwIjoxNzc1MjgyMDQwfQ.pgX0LsPJqTuio2a0fCwRSjypfzqYRc5c1OJnuQySQiY",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/orders/69c789e97254e0dc9a7faa6a/notes/69c78a567254e0dc9a7faa6f",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "orders",
+            "69c789e97254e0dc9a7faa6a",
+            "notes",
+            "69c78a567254e0dc9a7faa6f"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Sepetten Ürün Silme (Gereksinim 2)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Yzc2Y2Y4MWJlMjgwOWUzOGE2ZThmZiIsImVtYWlsIjoiZWRhZ29nZWJha2FuMUBnbWFpbC5jb20iLCJyb2xlIjoidXNlciIsImZpcnN0TmFtZSI6IkVkYSIsImlhdCI6MTc3NDY3NzI0MCwiZXhwIjoxNzc1MjgyMDQwfQ.pgX0LsPJqTuio2a0fCwRSjypfzqYRc5c1OJnuQySQiY",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/cart/items/69c7887b7254e0dc9a7faa5d",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "cart",
+            "items",
+            "69c7887b7254e0dc9a7faa5d"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Sipariş İptali (Gereksinim 6)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Yzc2Y2Y4MWJlMjgwOWUzOGE2ZThmZiIsImVtYWlsIjoiZWRhZ29nZWJha2FuMUBnbWFpbC5jb20iLCJyb2xlIjoidXNlciIsImZpcnN0TmFtZSI6IkVkYSIsImlhdCI6MTc3NDY3NzI0MCwiZXhwIjoxNzc1MjgyMDQwfQ.pgX0LsPJqTuio2a0fCwRSjypfzqYRc5c1OJnuQySQiY",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/orders/69c789e97254e0dc9a7faa6a/cancel",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "orders",
+            "69c789e97254e0dc9a7faa6a",
+            "cancel"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

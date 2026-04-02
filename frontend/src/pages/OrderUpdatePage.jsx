@@ -5,11 +5,14 @@ import { useOrders } from '../context/OrdersContext'
 export default function OrderUpdatePage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { orderById, updateOrder } = useOrders()
 
+  // orderById YERİNE orders ALINDI
+  const { orders, updateOrder } = useOrders()
+
+  // get(id) YERİNE find KULLANILDI
   const order = useMemo(() => {
-    return orderById.get(id) ?? null
-  }, [id, orderById])
+    return orders?.find(o => String(o.id) === String(id) || String(o._id) === String(id)) ?? null
+  }, [id, orders])
 
   const [form, setForm] = useState({
     fullName: '',
@@ -62,7 +65,7 @@ export default function OrderUpdatePage() {
     return ''
   }
 
-  function onSubmit(e) {
+  async function onSubmit(e) {
     e.preventDefault()
     setError('')
     const msg = validate()
@@ -71,10 +74,17 @@ export default function OrderUpdatePage() {
       return
     }
 
-    updateOrder(order.id, {
-      buyer: form,
+    // Backend PUT /api/orders/:orderId şunu bekliyor: { address, recipient, giftNote }
+    const res = await updateOrder(order.id, {
+      address: form.address,
+      recipient: form.fullName,
       giftNote: includeGiftNote ? (giftNote.trim() ? giftNote.trim() : null) : null,
     })
+
+    if (res && !res.ok) {
+      setError(res.error || 'Güncelleme başarısız.')
+      return
+    }
     navigate(`/orders/${order.id}`)
   }
 
@@ -215,9 +225,6 @@ export default function OrderUpdatePage() {
                 Toplam: <span className="font-semibold text-bordo">{order.total}₺</span>
               </div>
               <div>Not: {order.giftNote ? 'Var' : 'Yok'}</div>
-            </div>
-            <div className="mt-6 rounded-md border border-[#1A1A1A]/10 bg-krem p-4 font-body text-xs text-[#1A1A1A]/60">
-              Bu güncelleme mock olarak yapılır ve localStorage’ta saklanır.
             </div>
           </aside>
         </div>

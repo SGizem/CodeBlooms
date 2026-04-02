@@ -1,50 +1,43 @@
-const express  = require('express')
-const mongoose = require('mongoose')
-const cors     = require('cors')
-require('dotenv').config()
+const express    = require('express')
+const dotenv     = require('dotenv')
+const cors       = require('cors')
+const connectDB  = require('./config/db')
 
-// ── Ortam değişkeni doğrulaması ──────────────────────────────────────
+dotenv.config()
+
+// ── 1. ORTAM DEĞİŞKENİ KONTROLÜ ──────────────────────────────
 if (!process.env.MONGO_URI || process.env.MONGO_URI.trim() === '') {
-  console.error('\x1b[41m\x1b[37m\x1b[1m')
-  console.error(' KRİTİK HATA: .env dosyasında MONGO_URI bulunamadı! ')
-  console.error(' Lütfen backend/.env dosyasını oluşturun ve MONGO_URI değerini ekleyin. ')
-  console.error('\x1b[0m')
+  console.error('KRİTİK HATA: .env dosyasında MONGO_URI bulunamadı!')
+  console.error('Lütfen backend/.env dosyasını oluşturun ve MONGO_URI değerini ekleyin.')
   process.exit(1)
 }
 
-const PORT = process.env.PORT || 5000
+// ── 2. VERİTABANI BAĞLANTISI ─────────────────────────────────
+connectDB()
 
 const app = express()
-
 app.use(cors())
 app.use(express.json())
 
-// ── MongoDB bağlantısı ───────────────────────────────────────────────
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log('\x1b[32m✓ MongoDB bağlantısı başarılı.\x1b[0m')
-  })
-  .catch(err => {
-    console.error('\x1b[31m✗ MongoDB bağlantı hatası:\x1b[0m', err.message)
-    console.error('  → MONGO_URI değerinizi ve ağ bağlantınızı kontrol edin.')
-    process.exit(1)
-  })
+// ── 3. ROTALAR ───────────────────────────────────────────────
+app.use('/api/users',    require('./routes/authRoutes'))       // register, login
+app.use('/api/products', require('./routes/productRoutes'))    // CRUD ürünler
+app.use('/api/comments', require('./routes/commentRoutes'))    // yorumlar
+app.use('/api/cart',     require('./routes/cart.routes'))      // sepet  → cart.routes.js
+app.use('/api/orders',   require('./routes/order.routes'))     // sipariş + notes  → order.routes.js
 
-// ── Route'lar ────────────────────────────────────────────────────────
-app.use('/api/users',    require('./routes/authRoutes'))
-app.use('/api/products', require('./routes/productRoutes'))
-app.use('/api/orders',   require('./routes/orderRoutes'))
-app.use('/api/comments', require('./routes/commentRoutes'))
+// ── 4. TEST ROTASI ───────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.send('🚀 CodeBlooms API Çalışıyor!')
+})
 
-// Yorum route'larını /api/products/:productId/comments prefix'iyle de bağla
-app.use('/api', require('./routes/commentRoutes'))
+// ── 5. 404 YAKALAYICI ────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ message: 'Endpoint bulunamadı.' })
+})
 
-// Eda'nın route'ları buraya eklenecek:
-// app.use('/api/cart',   require('./routes/cartRoutes'))
-// app.use('/api/orders', require('./routes/orderNoteRoutes'))
-
-// ── Sunucu ───────────────────────────────────────────────────────────
+// ── 6. SUNUCU BAŞLATMA ───────────────────────────────────────
+const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {
-  console.log(`\x1b[36m🚀 Server çalışıyor → http://localhost:${PORT}\x1b[0m`)
+  console.log(`🚀 Sunucu ${PORT} portunda çalışıyor — ${new Date().toLocaleString('tr-TR')}`)
 })

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import CartToast from './components/CartToast'
+import ScrollToTop from './components/ScrollToTop'
 import HomePage from './pages/HomePage'
 import FlowersPage from './pages/FlowersPage'
 import FlowerDetailPage from './pages/FlowerDetailPage'
@@ -28,6 +29,8 @@ function AppLayout() {
 
   return (
     <div className="w-full min-h-screen bg-krem flex flex-col">
+      {/* Her route değişiminde sayfayı en üste atar */}
+      <ScrollToTop />
       <Navbar cartCount={cartCount} />
       <main className="flex-1" aria-label="Sayfa içeriği">
         <Routes>
