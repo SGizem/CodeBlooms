@@ -1,8 +1,6 @@
 import axios from 'axios';
 
 // ── BASE CONFIG ──────────────────────────────────────────────
-// Production: https://codeblooms.onrender.com
-// Dev: Vite proxy /api → localhost:5000
 const api = axios.create({
   baseURL: 'https://codeblooms.onrender.com',
   timeout: 15000,
@@ -39,95 +37,143 @@ export default api;
 //  MERKEZİ API FONKSİYONLARI
 // ════════════════════════════════════════════════════════════
 
-// ── 11. KULLANICI KAYIT ──────────────────────────────────────
+// ── GEREKSİNİM 1: Kullanıcı Kaydı ───────────────────────────
 // POST /api/users/register
-export const registerUser = (data) =>
-  api.post('/api/users/register', data);
+export const registerUser = async (firstName, lastName, email, password) => {
+  const res = await api.post('/api/users/register', { firstName, lastName, email, password });
+  const data = res.data;
+  localStorage.setItem('token', data.token);
+  localStorage.setItem('cb_current_user', JSON.stringify(data.user));
+  return data;
+};
 
-// ── 12. KULLANICI GİRİŞ ──────────────────────────────────────
-// POST /api/users/login
-export const loginUser = (data) =>
-  api.post('/api/users/login', data);
-
-// ── 15. ÜRÜNLERİ LİSTELE ─────────────────────────────────────
-// GET /api/products
-export const fetchProducts = () =>
-  api.get('/api/products');
-
-// ── 13. ÜRÜN EKLE (admin) ─────────────────────────────────────
+// ── GEREKSİNİM 2: Ürün Ekleme (admin) ───────────────────────
 // POST /api/products
-export const createProduct = (data) =>
-  api.post('/api/products', data);
+export const addProductAPI = async (productData) => {
+  const res = await api.post('/api/products', productData);
+  return res.data.product;
+};
 
-// ── 14. ÜRÜN SİL (admin) ──────────────────────────────────────
+// ── GEREKSİNİM 3: Ürün Silme (admin) ────────────────────────
 // DELETE /api/products/:productId
-export const deleteProduct = (productId) =>
-  api.delete(`/api/products/${productId}`);
+export const deleteProductAPI = async (productId) => {
+  const res = await api.delete(`/api/products/${productId}`);
+  return res.data;
+};
 
-// ── 16. YORUM EKLE ───────────────────────────────────────────
-// POST /api/comments/products/:productId/comments
-// Backend mount: app.use('/api/comments', commentRoutes)
-// Router path:   router.post('/products/:productId/comments', ...)
-export const addComment = (productId, data) =>
-  api.post(`/api/comments/products/${productId}/comments`, data);
+// ── GEREKSİNİM 4: Ürünleri Listeleme ────────────────────────
+// GET /api/products
+export const getProductsAPI = async (category = '', search = '') => {
+  const params = {};
+  if (category && category !== 'Tümü') params.category = category;
+  if (search) params.search = search;
+  const res = await api.get('/api/products', { params });
+  return (res.data.products || []).map(p => ({
+    ...p,
+    id: p._id,
+    image: p.imageUrl,
+    _mongoId: p._id,
+  }));
+};
 
-// ── 17. YORUM SİL ───────────────────────────────────────────
-// DELETE /api/comments/:commentId
-export const deleteComment = (commentId) =>
-  api.delete(`/api/comments/${commentId}`);
+// ── GEREKSİNİM 5: Sipariş Güncelleme ────────────────────────
+// PUT /api/orders/:orderId
+export const updateOrderAPI = async (orderId, updateData) => {
+  const res = await api.put(`/api/orders/${orderId}`, updateData);
+  return res.data.order;
+};
 
-// Yorum oku
-// GET /api/comments/products/:productId/comments
-export const fetchComments = (productId) =>
-  api.get(`/api/comments/products/${productId}/comments`);
-
-// ── 4. SEPETİ LİSTELE ────────────────────────────────────────
-// GET /api/cart
-export const fetchCart = () =>
-  api.get('/api/cart');
-
-// ── 1. SEPETE ÜRÜN EKLE ──────────────────────────────────────
-// POST /api/cart/add   Body: { productId, quantity }
-export const addToCartAPI = (productId, quantity) =>
-  api.post('/api/cart/add', { productId, quantity });
-
-// ── 2. SEPETTEN SİL ──────────────────────────────────────────
-// DELETE /api/cart/items/:itemId
-export const removeCartItem = (itemId) =>
-  api.delete(`/api/cart/items/${itemId}`);
-
-// ── 3. SEPET ADET GÜNCELLE ───────────────────────────────────
-// PUT /api/cart/items/:itemId   Body: { quantity }
-export const updateCartItem = (itemId, quantity) =>
-  api.put(`/api/cart/items/${itemId}`, { quantity });
-
-// ── 5. SİPARİŞ OLUŞTUR ───────────────────────────────────────
-// POST /api/orders   Body: { address, recipient, items?, giftNote? }
-export const createOrder = (data) =>
-  api.post('/api/orders', data);
-
-// ── 8. SİPARİŞLERİ LİSTELE ──────────────────────────────────
+// ── GEREKSİNİM 6: Sipariş Listeleme ─────────────────────────
 // GET /api/orders/:userId
-export const fetchOrders = (userId) =>
-  api.get(`/api/orders/${userId}`);
+export const getOrdersAPI = async (userId) => {
+  const res = await api.get(`/api/orders/${userId}`);
+  return res.data.orders;
+};
 
-// ── 6. SİPARİŞ İPTAL ─────────────────────────────────────────
+// ── GEREKSİNİM 7: Yorum Ekleme ───────────────────────────────
+// POST /api/comments/products/:productId/comments
+export const addCommentAPI = async (productId, text, rating) => {
+  const res = await api.post(`/api/comments/products/${productId}/comments`, { text, rating });
+  return res.data.comment;
+};
+
+// ── GEREKSİNİM 8: Yorum Silme ────────────────────────────────
+// DELETE /api/comments/:commentId
+export const deleteCommentAPI = async (commentId) => {
+  const res = await api.delete(`/api/comments/${commentId}`);
+  return res.data;
+};
+
+// ── EDA GEREKSİNİM 1: Sepete Ürün Ekleme ────────────────────
+// POST /api/cart/add
+export const addToCartAPI = async (productId, quantity = 1) => {
+  const res = await api.post('/api/cart/add', { productId: String(productId), quantity: Number(quantity) });
+  return res.data.cart;
+};
+
+// ── EDA GEREKSİNİM 2: Sepetten Ürün Silme ───────────────────
+// DELETE /api/cart/items/:itemId
+export const removeFromCartAPI = async (itemId) => {
+  const res = await api.delete(`/api/cart/items/${itemId}`);
+  return res.data.cart;
+};
+
+// ── EDA GEREKSİNİM 3: Sepet Güncelleme ──────────────────────
+// PUT /api/cart/items/:itemId
+export const updateCartItemAPI = async (itemId, quantity) => {
+  const res = await api.put(`/api/cart/items/${itemId}`, { quantity: Number(quantity) });
+  return res.data.cart;
+};
+
+// ── EDA GEREKSİNİM 4: Sepet Listeleme ───────────────────────
+// GET /api/cart
+export const getCartAPI = async () => {
+  const res = await api.get('/api/cart');
+  return res.data.cart;
+};
+
+// ── EDA GEREKSİNİM 5: Sipariş Oluşturma ─────────────────────
+// POST /api/orders
+export const createOrderAPI = async (address, recipient, items, giftNote = '') => {
+  const res = await api.post('/api/orders', { address, recipient, items, giftNote });
+  return res.data.order;
+};
+
+// ── EDA GEREKSİNİM 6: Sipariş İptali ────────────────────────
 // DELETE /api/orders/:orderId/cancel
-export const cancelOrder = (orderId) =>
-  api.delete(`/api/orders/${orderId}/cancel`);
+export const cancelOrderAPI = async (orderId) => {
+  const res = await api.delete(`/api/orders/${orderId}/cancel`);
+  return res.data;
+};
 
-// ── 7. SİPARİŞ GÜNCELLE ──────────────────────────────────────
-// PUT /api/orders/:orderId   Body: { address?, recipient?, giftNote? }
-export const updateOrder = (orderId, data) =>
-  api.put(`/api/orders/${orderId}`, data);
-
-// ── 9. HEDİYE NOTU EKLE ──────────────────────────────────────
+// ── EDA GEREKSİNİM 7: Hediye Notu Ekleme ────────────────────
 // POST /api/orders/:orderId/notes   Body: { message }
-// ÖNEMLİ: Backend noteController { message } bekliyor
-export const addGiftNote = (orderId, message) =>
-  api.post(`/api/orders/${orderId}/notes`, { message });
+export const addGiftNoteAPI = async (orderId, note) => {
+  const res = await api.post(`/api/orders/${orderId}/notes`, { message: note });
+  return res.data.note;
+};
 
-// ── 10. HEDİYE NOTU SİL ──────────────────────────────────────
+// ── EDA GEREKSİNİM 8: Hediye Notu Silme ─────────────────────
 // DELETE /api/orders/:orderId/notes/:noteId
-export const deleteGiftNote = (orderId, noteId) =>
-  api.delete(`/api/orders/${orderId}/notes/${noteId}`);
+export const deleteGiftNoteAPI = async (orderId, noteId) => {
+  const res = await api.delete(`/api/orders/${orderId}/notes/${noteId}`);
+  return res.data;
+};
+
+// ── AXIOS ALIAS'LAR (context dosyaları için eski isimler) ───
+export const loginUser   = (data) => api.post('/api/users/login', data);
+export const fetchProducts = ()   => api.get('/api/products');
+export const createProduct  = (data) => api.post('/api/products', data);
+export const deleteProduct  = (id)   => api.delete(`/api/products/${id}`);
+export const addComment     = (productId, data) => api.post(`/api/comments/products/${productId}/comments`, data);
+export const deleteComment  = (commentId)       => api.delete(`/api/comments/${commentId}`);
+export const fetchComments  = (productId)       => api.get(`/api/comments/products/${productId}/comments`);
+export const fetchCart      = ()                => api.get('/api/cart');
+export const removeCartItem = (itemId)          => api.delete(`/api/cart/items/${itemId}`);
+export const updateCartItem = (itemId, quantity) => api.put(`/api/cart/items/${itemId}`, { quantity });
+export const createOrder    = (data)            => api.post('/api/orders', data);
+export const fetchOrders    = (userId)          => api.get(`/api/orders/${userId}`);
+export const cancelOrder    = (orderId)         => api.delete(`/api/orders/${orderId}/cancel`);
+export const updateOrder    = (orderId, data)   => api.put(`/api/orders/${orderId}`, data);
+export const addGiftNote    = (orderId, message) => api.post(`/api/orders/${orderId}/notes`, { message });
+export const deleteGiftNote = (orderId, noteId)  => api.delete(`/api/orders/${orderId}/notes/${noteId}`);
