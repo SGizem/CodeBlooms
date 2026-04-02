@@ -1,7 +1,9 @@
-const express  = require('express')
-const mongoose = require('mongoose')
-const cors     = require('cors')
-require('dotenv').config()
+const express    = require('express')
+const dotenv     = require('dotenv')
+const cors       = require('cors')
+const connectDB  = require('./config/db')
+
+dotenv.config()
 
 // ── 1. ORTAM DEĞİŞKENİ KONTROLÜ ──────────────────────────────
 if (!process.env.MONGO_URI || process.env.MONGO_URI.trim() === '') {
@@ -10,23 +12,19 @@ if (!process.env.MONGO_URI || process.env.MONGO_URI.trim() === '') {
   process.exit(1)
 }
 
+// ── 2. VERİTABANI BAĞLANTISI ─────────────────────────────────
+connectDB()
+
 const app = express()
 app.use(cors())
 app.use(express.json())
 
-// ── 2. VERİTABANI BAĞLANTISI ─────────────────────────────────
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ MongoDB Atlas Bağlantısı Başarılı'))
-  .catch((err) => console.error('❌ MongoDB Bağlantı Hatası:', err))
-
 // ── 3. ROTALAR ───────────────────────────────────────────────
-// Her endpoint grubu tek, yetkili route dosyasına bağlı.
-// Çakışmaları önlemek için her prefix yalnızca BİR dosyaya mount edildi.
 app.use('/api/users',    require('./routes/authRoutes'))       // register, login
 app.use('/api/products', require('./routes/productRoutes'))    // CRUD ürünler
 app.use('/api/comments', require('./routes/commentRoutes'))    // yorumlar
-app.use('/api/cart',     require('./routes/cartRoutes'))       // sepet
-app.use('/api/orders',   require('./routes/orderRoutes'))      // sipariş + notes
+app.use('/api/cart',     require('./routes/cart.routes'))      // sepet  → cart.routes.js
+app.use('/api/orders',   require('./routes/order.routes'))     // sipariş + notes  → order.routes.js
 
 // ── 4. TEST ROTASI ───────────────────────────────────────────
 app.get('/', (req, res) => {
