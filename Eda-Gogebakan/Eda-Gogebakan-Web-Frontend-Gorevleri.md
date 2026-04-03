@@ -1,6 +1,6 @@
 # CodeBlooms - Web Frontend Görevleri (Eda Göğebakan)
 
-**Web Frontend Adresi:** https://code-blooms.vercel.app/
+**Web Frontend Adresi:** https://code-blooms.vercel.app
 **Test Kanıt Videosu (YouTube):** [[Video Linki Buraya Gelecek](https://youtu.be/awmS0zkvpRE)]
 
 ## Arayüz (UI) ve Kullanıcı Deneyimi (UX) Görevlerim
