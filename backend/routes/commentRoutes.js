@@ -1,5 +1,5 @@
-const express        = require('express')
-const Comment        = require('../models/Comment')
+const express = require('express')
+const Comment = require('../models/Comment')
 const authMiddleware = require('../middleware/authMiddleware')
 
 const router = express.Router()
