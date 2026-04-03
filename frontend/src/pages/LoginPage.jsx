@@ -11,7 +11,7 @@ export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  function onSubmit(e) {
+  async function onSubmit(e) {
     e.preventDefault()
     setError('')
     if (!form.email || !form.password) {
@@ -19,7 +19,7 @@ export default function LoginPage() {
       return
     }
 
-    const res = login(form)
+    const res = await login(form)
     if (!res.ok) {
       setError(res.error || 'Giriş başarısız.')
       return

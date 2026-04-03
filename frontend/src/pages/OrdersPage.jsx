@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useOrders } from '../context/OrdersContext'
+import { updateOrderAPI, cancelOrderAPI } from '../api'
 
 const FALLBACK = 'https://images.unsplash.com/photo-1487530811015-780780b58c25?w=200&q=80'
 
@@ -49,9 +50,14 @@ function StatusBadge({ status, statusLabel }) {
   )
 }
 
+// Gereksinime göre güncellenmiş kontrol fonksiyonu
 function isActive(status) {
-  const s = String(status).toLowerCase()
-  return !s.includes('teslim') && !s.includes('iptal')
+  const s = String(status || '').toLowerCase()
+  // Eğer sipariş iptal, kargoda, yolda veya teslim durumundaysa false döner (butonları gizler)
+  if (s.includes('iptal') || s.includes('cancel') || s.includes('teslim') || s.includes('kargo') || s.includes('yolda')) {
+    return false
+  }
+  return true // Sadece "hazırlanıyor", "onaylandı" gibi durumlarda true döner
 }
 
 function EditModal({ order, onSave, onClose }) {
@@ -250,23 +256,69 @@ export default function OrdersPage() {
   const [editingOrder, setEditingOrder] = useState(null)
   const [cancelId, setCancelId] = useState(null)
 
-  const activeOrders = useMemo(() => orders.filter(o => isActive(o.status)), [orders])
-  const pastOrders = useMemo(() => orders.filter(o => !isActive(o.status)), [orders])
+  // ── GEREKSİNİM 6: Sipariş Listeleme — GET /api/orders/{userId} ──
+  // OrdersContext zaten useEffect ile MongoDB'den çekiyor.
+  // Burada aynı veriyi normalize ederek kullanıyoruz.
+  const sourceOrders = orders.map(o => ({
+    ...o,
+    buyer: o.buyer || { fullName: o.recipient || '', address: o.address || '' },
+  }))
+
+  const activeOrders = useMemo(
+    () => sourceOrders.filter(o => isActive(o.status)),
+    [orders]
+  )
+  const pastOrders = useMemo(
+    () => sourceOrders.filter(o => !isActive(o.status)),
+    [orders]
+  )
   const displayOrders = tab === 'active' ? activeOrders : pastOrders
 
-  function handleSave(orderId, updates) {
-    updateOrder(orderId, updates)
-  }
+  // ── GEREKSİNİM 5: Sipariş Güncelleme — PUT /api/orders/{orderId} ──
+  async function handleSave(orderId, updates) {
+    const payload = {}
+    if (updates.buyer?.address  !== undefined) payload.address   = updates.buyer.address
+    if (updates.buyer?.fullName !== undefined) payload.recipient = updates.buyer.fullName
+    if ('giftNote' in updates)                 payload.giftNote  = updates.giftNote ?? ''
 
-  function handleConfirmCancel() {
-    if (cancelId) {
-      cancelOrder(cancelId)
-      setCancelId(null)
+    // 1. Context üzerinden API'ye gönder (OrdersContext.updateOrder → api.put)
+    const res = await updateOrder(orderId, payload)
+    if (res?.ok) {
+      console.log('✅ GEREKSİNİM 5 — Sipariş Güncelleme MongoDB\'ye kaydedildi')
+    } else {
+      console.log('❌ Sipariş güncelleme hatası:', res?.error)
     }
+    setEditingOrder(null)
   }
 
-  function handleDeleteGiftNote(orderId) {
-    updateOrder(orderId, { giftNote: null })
+  // ── EDA GEREKSİNİM 6: Sipariş İptali — DELETE /api/orders/{orderId}/cancel ──
+  async function handleConfirmCancel() {
+    if (!cancelId) return
+    // Context üzerinden API'ye gönder (OrdersContext.cancelOrder → api.delete)
+    const res = await cancelOrder(cancelId)
+    if (res?.ok) {
+      console.log('✅ EDA GEREKSİNİM 6 — Sipariş İptali MongoDB\'ye kaydedildi')
+    } else {
+      console.log('❌ İptal API hatası:', res?.error)
+    }
+    setCancelId(null)
+  }
+
+  // ── EDA GEREKSİNİM 8: Hediye Notu Silme ──
+  async function handleDeleteGiftNote(orderId) {
+    // Context üzerinden API'ye gönder
+    const res = await updateOrder(orderId, { giftNote: '' })
+    if (res?.ok) {
+      console.log('✅ EDA GEREKSİNİM 8 — Hediye Notu Silme MongoDB\'ye kaydedildi')
+    } else {
+      // Fallback: direkt API çağrısı
+      try {
+        await updateOrderAPI(orderId, { giftNote: '' })
+        console.log('✅ EDA GEREKSİNİM 8 — Hediye Notu Silme (fallback) MongoDB\'ye kaydedildi')
+      } catch (err) {
+        console.log('❌ Hediye notu sil hatası:', err.message)
+      }
+    }
   }
 
   if (orders.length === 0) {
@@ -297,19 +349,17 @@ export default function OrdersPage() {
         {/* Tabs */}
         <div className="mt-8 flex border-b border-[#EDE8DE]">
           <button type="button" onClick={() => setTab('active')}
-            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${
-              tab === 'active'
-                ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
-                : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
-            }`}>
+            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${tab === 'active'
+              ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
+              : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
+              }`}>
             Aktif Siparişlerim ({activeOrders.length})
           </button>
           <button type="button" onClick={() => setTab('past')}
-            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${
-              tab === 'past'
-                ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
-                : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
-            }`}>
+            className={`px-6 py-3 font-jost text-sm font-semibold transition-all ${tab === 'past'
+              ? 'border-b-2 border-[#7B1C3E] text-[#7B1C3E]'
+              : 'text-[#1A1A1A]/50 hover:text-[#1A1A1A]'
+              }`}>
             Geçmiş Siparişlerim ({pastOrders.length})
           </button>
         </div>

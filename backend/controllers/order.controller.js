@@ -1,17 +1,13 @@
-const express        = require('express')
-const mongoose       = require('mongoose')
-const authMiddleware = require('../middleware/authMiddleware')
-const Cart           = require('../models/Cart')
-const Order          = require('../models/Order')
-const Product        = require('../models/Product')
-
-const router = express.Router()
+const mongoose = require('mongoose')
+const Order    = require('../models/Order')
+const Cart     = require('../models/Cart')
+const Product  = require('../models/Product')
 
 // ─────────────────────────────────────────────
-// POST /api/orders — Sipariş oluştur
+// POST /api/orders
 // Body: { address, recipient, items?, giftNote? }
 // ─────────────────────────────────────────────
-router.post('/', authMiddleware, async (req, res) => {
+const createOrder = async (req, res) => {
   try {
     const { address, recipient, items: bodyItems, giftNote } = req.body || {}
 
@@ -19,7 +15,6 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Adres ve alıcı bilgileri zorunludur.' })
     }
 
-    // Ürün listesini: body'den gelen items YOKSA sepetten al
     const cart = await Cart.findOne({ user: req.user.id })
     if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
       return res.status(400).json({ message: 'Sepetiniz boş.' })
@@ -28,7 +23,6 @@ router.post('/', authMiddleware, async (req, res) => {
     const sourceItems =
       Array.isArray(bodyItems) && bodyItems.length > 0 ? bodyItems : cart.items
 
-    // Normalize: her item için productId ve quantity çıkar
     const normalized = sourceItems.map((i) => ({
       productId: i.productId || i.product || i._id,
       quantity:  Number(i.quantity || 1),
@@ -46,7 +40,6 @@ router.post('/', authMiddleware, async (req, res) => {
       }
     }
 
-    // Ürünleri veritabanından çek, stok kontrolü yap, order items oluştur
     const orderItems = []
     let total = 0
 
@@ -78,43 +71,19 @@ router.post('/', authMiddleware, async (req, res) => {
       status:   'preparing',
     })
 
-    // Sepeti temizle
     await Cart.findOneAndUpdate({ user: req.user.id }, { items: [] })
 
     return res.status(201).json({ order, message: 'Siparişiniz oluşturuldu.' })
   } catch (err) {
     console.error('Sipariş oluşturma hatası:', err)
-    return res.status(500).json({ message: 'Sipariş oluşturulurken hata oluştu.' })
+    return res.status(500).json({ message: 'Sipariş oluşturulurken hata oluştu.', error: err.message })
   }
-})
+}
 
 // ─────────────────────────────────────────────
-// GET /api/orders/:userId — Kullanıcının siparişleri
+// DELETE /api/orders/:orderId/cancel
 // ─────────────────────────────────────────────
-router.get('/:userId', authMiddleware, async (req, res) => {
-  try {
-    const { userId } = req.params
-
-    // Sadece kendi siparişlerine erişebilir (admin hariç)
-    if (req.user.id !== userId && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Bu siparişlere erişim yetkiniz yok.' })
-    }
-
-    const orders = await Order.find({ user: userId })
-      .populate('items.product')
-      .sort({ createdAt: -1 })
-
-    return res.status(200).json({ orders })
-  } catch (err) {
-    console.error('Sipariş listeleme hatası:', err)
-    return res.status(500).json({ message: 'Sunucu hatası.' })
-  }
-})
-
-// ─────────────────────────────────────────────
-// DELETE /api/orders/:orderId/cancel — Sipariş iptal
-// ─────────────────────────────────────────────
-router.delete('/:orderId/cancel', authMiddleware, async (req, res) => {
+const cancelOrder = async (req, res) => {
   try {
     const { orderId } = req.params
 
@@ -131,7 +100,7 @@ router.delete('/:orderId/cancel', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'Bu işlem için yetkiniz yok.' })
     }
 
-    if (order.status === 'shipped' || order.status === 'delivered') {
+    if (['shipped', 'delivered'].includes(order.status)) {
       return res.status(400).json({ message: 'Kargoya verilen veya teslim edilen sipariş iptal edilemez.' })
     }
 
@@ -144,18 +113,18 @@ router.delete('/:orderId/cancel', authMiddleware, async (req, res) => {
     return res.status(200).json({ message: 'Sipariş iptal edildi.', order: updated })
   } catch (err) {
     console.error('Sipariş iptal hatası:', err)
-    return res.status(500).json({ message: 'Sipariş iptal edilirken hata oluştu.' })
+    return res.status(500).json({ message: 'Sipariş iptal edilirken hata oluştu.', error: err.message })
   }
-})
+}
 
 // ─────────────────────────────────────────────
-// PUT /api/orders/:orderId — Sipariş güncelle
-// Body: { address?, recipient?, giftNote? }
+// PUT /api/orders/:orderId
+// Body: { address?, recipient?, giftNote?, status? }
 // ─────────────────────────────────────────────
-router.put('/:orderId', authMiddleware, async (req, res) => {
+const updateOrder = async (req, res) => {
   try {
     const { orderId } = req.params
-    const { address, recipient, giftNote } = req.body || {}
+    const { address, recipient, giftNote, status } = req.body || {}
 
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({ message: 'Geçersiz sipariş kimliği.' })
@@ -170,7 +139,6 @@ router.put('/:orderId', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'Bu siparişi güncelleme yetkiniz yok.' })
     }
 
-    // Kargoya verilmiş veya teslim edilmişse güncellenemez
     const lockedStatuses = ['shipped', 'delivered', 'cancelled']
     if (lockedStatuses.includes(order.status)) {
       return res.status(400).json({ message: 'Bu sipariş artık güncellenemez.' })
@@ -179,21 +147,50 @@ router.put('/:orderId', authMiddleware, async (req, res) => {
     if (address   !== undefined) order.address   = address
     if (recipient !== undefined) order.recipient = recipient
     if (giftNote  !== undefined) order.giftNote  = giftNote
+    if (status    !== undefined) {
+      const allowedStatuses = ['pending', 'preparing', 'shipped', 'delivered', 'cancelled']
+      if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({ message: 'Geçersiz sipariş durumu.' })
+      }
+      order.status = status
+    }
 
     await order.save()
 
-    return res.status(200).json({ order })
+    return res.status(200).json({ message: 'Sipariş güncellendi.', order })
   } catch (err) {
     console.error('Sipariş güncelleme hatası:', err)
-    return res.status(500).json({ message: 'Sunucu hatası.' })
+    return res.status(500).json({ message: 'Sunucu hatası.', error: err.message })
   }
-})
+}
 
 // ─────────────────────────────────────────────
-// POST /api/orders/:orderId/notes — Hediye notu ekle
+// GET /api/orders/:userId
+// ─────────────────────────────────────────────
+const getOrders = async (req, res) => {
+  try {
+    const { userId } = req.params
+
+    if (req.user.id !== userId && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Bu siparişlere erişim yetkiniz yok.' })
+    }
+
+    const orders = await Order.find({ user: userId })
+      .populate('items.product')
+      .sort({ createdAt: -1 })
+
+    return res.status(200).json({ orders })
+  } catch (err) {
+    console.error('Sipariş listeleme hatası:', err)
+    return res.status(500).json({ message: 'Sunucu hatası.', error: err.message })
+  }
+}
+
+// ─────────────────────────────────────────────
+// POST /api/orders/:orderId/notes
 // Body: { message }
 // ─────────────────────────────────────────────
-router.post('/:orderId/notes', authMiddleware, async (req, res) => {
+const addNote = async (req, res) => {
   try {
     const { orderId } = req.params
     const { message } = req.body || {}
@@ -220,25 +217,24 @@ router.post('/:orderId/notes', authMiddleware, async (req, res) => {
 
     const addedNote = order.notes[order.notes.length - 1]
 
-    return res.status(201).json({
-      message: 'Not eklendi.',
-      note:    addedNote,
-      order,
-    })
+    return res.status(201).json({ message: 'Not eklendi.', note: addedNote, order })
   } catch (err) {
     console.error('Not ekleme hatası:', err)
     return res.status(500).json({ message: 'Sunucu hatası.', error: err.message })
   }
-})
+}
 
 // ─────────────────────────────────────────────
-// DELETE /api/orders/:orderId/notes/:noteId — Hediye notu sil
+// DELETE /api/orders/:orderId/notes/:noteId
 // ─────────────────────────────────────────────
-router.delete('/:orderId/notes/:noteId', authMiddleware, async (req, res) => {
+const deleteNote = async (req, res) => {
   try {
     const { orderId, noteId } = req.params
 
-    if (!mongoose.Types.ObjectId.isValid(orderId) || !mongoose.Types.ObjectId.isValid(noteId)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(orderId) ||
+      !mongoose.Types.ObjectId.isValid(noteId)
+    ) {
       return res.status(400).json({ message: 'Geçersiz kimlik bilgisi.' })
     }
 
@@ -264,6 +260,6 @@ router.delete('/:orderId/notes/:noteId', authMiddleware, async (req, res) => {
     console.error('Not silme hatası:', err)
     return res.status(500).json({ message: 'Sunucu hatası.', error: err.message })
   }
-})
+}
 
-module.exports = router
+module.exports = { createOrder, cancelOrder, updateOrder, getOrders, addNote, deleteNote }
