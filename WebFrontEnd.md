@@ -1,6 +1,6 @@
 # Web Frontend Görev Dağılımı
 
-**Web Frontend Adresi:** [https://codeblooms.vercel.app](https://codeblooms.vercel.app)
+**Web Frontend Adresi:** [https://codeblooms.vercel.app](https://code-blooms.vercel.app/)
 
 Bu dokümanda, CodeBlooms web uygulamasının kullanıcı arayüzü (UI) ve kullanıcı deneyimi (UX) görevleri listelenmektedir. Her grup üyesi, kendisine atanan sayfaların tasarımı, API entegrasyonu ve kullanıcı etkileşimlerinden sorumludur.
 
