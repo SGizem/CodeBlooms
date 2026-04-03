@@ -8,8 +8,8 @@ Bu dokümanda, CodeBlooms web uygulamasının kullanıcı arayüzü (UI) ve kull
 
 Aşağıdaki bağlantılara tıklayarak her üyenin detaylı frontend görevlerine ve test videolarına ulaşabilirsiniz:
 
-1. [Sedef Gizem Orulluoğlu'nun Web Frontend Görevleri](./Sedef-Gizem-Orulluoglu/WebFrontEnd.md)
-2. [Eda Göğebakan'ın Web Frontend Görevleri](./Eda-Gogebakan/WebFrontEnd.md)
+1. [Sedef Gizem Orulluoğlu'nun Web Frontend Görevleri](./Sedef-Gizem-Orulluoglu/Sedef-Gizem-Orulluoglu-Web-Frontend-Gorevleri.md)
+2. [Eda Göğebakan'ın Web Frontend Görevleri](./Eda-Gogebakan/Eda-Gogebakan-Web-Frontend-Gorevleri.md)
 
 ---
 
