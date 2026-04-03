@@ -1,0 +1,317 @@
+{
+  "info": {
+    "_postman_id": "4ddb4c3b-3c25-454f-9d0b-7e8c848d8134",
+    "name": "Sedef Gizem'in API Testleri ",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "50515098",
+    "_collection_link": "https://go.postman.co/collection/50515098-4ddb4c3b-3c25-454f-9d0b-7e8c848d8134?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1) Kullanıcı Girişi (Login)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"sgizemm@test.com\",\r\n  \"password\": \"123456\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://codeblooms.onrender.com/api/users/login",
+          "protocol": "https",
+          "host": [
+            "codeblooms",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "api",
+            "users",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2) Kullanıcı Kaydı (Register)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"firstName\": \"Sedef Gizem\",\r\n  \"lastName\": \"Orulluoglu\",\r\n  \"email\": \"sgizemm@test.com\",\r\n  \"password\": \"123456\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/users/register",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "users",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3) Ürün Ekleme (Admin)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzcxNjQzYjY1Zjc1NDU4ODAwMjc2ZCIsImVtYWlsIjoic2dpemVtbUB0ZXN0LmNvbSIsInJvbGUiOiJhZG1pbiIsImZpcnN0TmFtZSI6IlNlZGVmIEdpemVtIiwiaWF0IjoxNzc0NjU1NjEzLCJleHAiOjE3NzUyNjA0MTN9.ov5duT6khNuPkayemxgV1JtQ1nPzYf_s2zG8p6j0SNI",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"name\": \"Kırmızı Gül Buketi\",\r\n  \"description\": \"Taze kırmızı güller ile hazırlanmış özel buket\",\r\n  \"price\": 299,\r\n  \"stock\": 10,\r\n  \"imageUrl\": \"https://m.media-amazon.com/images/I/51B+HXrql+L._AC_UF1000,1000_QL80_.jpg\",\r\n  \"category\": \"Güller\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://codeblooms.onrender.com/api/products",
+          "protocol": "https",
+          "host": [
+            "codeblooms",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "api",
+            "products"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4) Ürün Silme",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzcxNjQzYjY1Zjc1NDU4ODAwMjc2ZCIsImVtYWlsIjoic2dpemVtbUB0ZXN0LmNvbSIsInJvbGUiOiJhZG1pbiIsImZpcnN0TmFtZSI6IlNlZGVmIEdpemVtIiwiaWF0IjoxNzc0NjU1NjEzLCJleHAiOjE3NzUyNjA0MTN9.ov5duT6khNuPkayemxgV1JtQ1nPzYf_s2zG8p6j0SNI",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/products/69c797508c90e9fe80792b09",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "products",
+            "69c797508c90e9fe80792b09"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5) Ürünleri Listeleme",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzcxNjQzYjY1Zjc1NDU4ODAwMjc2ZCIsImVtYWlsIjoic2dpemVtbUB0ZXN0LmNvbSIsInJvbGUiOiJhZG1pbiIsImZpcnN0TmFtZSI6IlNlZGVmIEdpemVtIiwiaWF0IjoxNzc0NjgyMTEzLCJleHAiOjE3NzUyODY5MTN9.34uS6tAOoSF9l1HFRdrqAEF8eU96xMJV8EKuPv77Veo",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/products",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "products"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6) Sipariş Güncelleme",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzcxNjQzYjY1Zjc1NDU4ODAwMjc2ZCIsImVtYWlsIjoic2dpemVtbUB0ZXN0LmNvbSIsInJvbGUiOiJhZG1pbiIsImZpcnN0TmFtZSI6IlNlZGVmIEdpemVtIiwiaWF0IjoxNzc0NjgyMTEzLCJleHAiOjE3NzUyODY5MTN9.34uS6tAOoSF9l1HFRdrqAEF8eU96xMJV8EKuPv77Veo",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"address\": \"Yeni Mah. Çiçek Sok. No:5 İstanbul\",\r\n  \"recipient\": \"Sedef Gizem Orulluoğlu\",\r\n  \"giftNote\": \"İyi ki doğdun canım!\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/orders/69c785c58c90e9fe80792ade",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "orders",
+            "69c785c58c90e9fe80792ade"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7) Sipariş Listeleme",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzcxNjQzYjY1Zjc1NDU4ODAwMjc2ZCIsImVtYWlsIjoic2dpemVtbUB0ZXN0LmNvbSIsInJvbGUiOiJhZG1pbiIsImZpcnN0TmFtZSI6IlNlZGVmIEdpemVtIiwiaWF0IjoxNzc0NjU1NjEzLCJleHAiOjE3NzUyNjA0MTN9.ov5duT6khNuPkayemxgV1JtQ1nPzYf_s2zG8p6j0SNI",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/orders/69c71643b65f75458800276d",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "orders",
+            "69c71643b65f75458800276d"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8) Yorum Ekleme",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzcxNjQzYjY1Zjc1NDU4ODAwMjc2ZCIsImVtYWlsIjoic2dpemVtbUB0ZXN0LmNvbSIsInJvbGUiOiJhZG1pbiIsImZpcnN0TmFtZSI6IlNlZGVmIEdpemVtIiwiaWF0IjoxNzc0NjU1NjEzLCJleHAiOjE3NzUyNjA0MTN9.ov5duT6khNuPkayemxgV1JtQ1nPzYf_s2zG8p6j0SNI",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"text\": \"Çok taze geldi, dükkanımızın en güzel ürünü kesinlikle tavsiye ediyorum!\",\r\n  \"rating\": 5\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/comments/products/69c5a3c0cbb252fc6b043ee8/comments",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "comments",
+            "products",
+            "69c5a3c0cbb252fc6b043ee8",
+            "comments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "9) Yorum Silme",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzcxNjQzYjY1Zjc1NDU4ODAwMjc2ZCIsImVtYWlsIjoic2dpemVtbUB0ZXN0LmNvbSIsInJvbGUiOiJhZG1pbiIsImZpcnN0TmFtZSI6IlNlZGVmIEdpemVtIiwiaWF0IjoxNzc0NjgyMTEzLCJleHAiOjE3NzUyODY5MTN9.34uS6tAOoSF9l1HFRdrqAEF8eU96xMJV8EKuPv77Veo",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/api/comments/69c797f68c90e9fe80792b0e",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "comments",
+            "69c797f68c90e9fe80792b0e"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
