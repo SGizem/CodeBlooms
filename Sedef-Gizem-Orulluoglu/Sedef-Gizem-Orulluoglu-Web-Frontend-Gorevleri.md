@@ -1,7 +1,7 @@
 # CodeBlooms - Web Frontend Görevleri (Sedef Gizem Orulluoğlu)
 
 **Web Frontend Adresi:** https://code-blooms.vercel.app
-**Test Kanıt Videosu (YouTube):** [[Video Linki Buraya Gelecek](https://youtu.be/aL6wGfkDJZk)]
+**Test Kanıt Videosu (YouTube):** [(https://youtu.be/aL6wGfkDJZk)]
 
 ## Arayüz (UI) ve Kullanıcı Deneyimi (UX) Görevlerim
 Bu dokümanda, sorumlu olduğum REST API metotlarının React frontend arayüzüne entegrasyonu ve sayfa tasarımları listelenmektedir:
