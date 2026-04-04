@@ -1,7 +1,7 @@
 # CodeBlooms - Web Frontend Görevleri (Eda Göğebakan)
 
 **Web Frontend Adresi:** https://code-blooms.vercel.app
-**Test Kanıt Videosu (YouTube):** [[Video Linki Buraya Gelecek](https://youtu.be/awmS0zkvpRE)]
+**Test Kanıt Videosu (YouTube):** [(https://youtu.be/awmS0zkvpRE)]
 
 ## Arayüz (UI) ve Kullanıcı Deneyimi (UX) Görevlerim
 Bu dokümanda, sorumlu olduğum REST API metotlarının React frontend arayüzüne entegrasyonu ve sayfa tasarımları listelenmektedir:
