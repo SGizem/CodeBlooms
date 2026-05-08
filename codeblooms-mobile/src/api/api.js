@@ -1,355 +1,161 @@
-/**
- * CodeBlooms Mobile - Merkezi API Servisi
- * Base URL: https://codeblooms.onrender.com
- *
- * Auth gereken tüm isteklerde AsyncStorage'dan token alınır
- * ve Authorization: Bearer <token> header'ı olarak eklenir.
- */
+import axios from 'axios'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
+const BASE_URL = 'https://codeblooms.onrender.com'
 
-// ---------------------------------------------------------------------------
-// Axios Instance
-// ---------------------------------------------------------------------------
+// Token'lı istek için axios instance
+const authAxios = async () => {
+  const token = await AsyncStorage.getItem('token')
+  return axios.create({
+    baseURL: BASE_URL,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  })
+}
 
-const BASE_URL = 'https://codeblooms.onrender.com';
-
-const api = axios.create({
+// Token'sız istek için
+const publicAxios = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+  headers: { 'Content-Type': 'application/json' }
+})
 
-// ---------------------------------------------------------------------------
-// Request Interceptor — Auth token ekleme
-// ---------------------------------------------------------------------------
+// ── SEDEFİN GEREKSİNİMLERİ ──
 
-api.interceptors.request.use(
-  async (config) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      console.log(
-        `[API İstek] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`,
-        config.data ?? ''
-      );
-    } catch (err) {
-      console.warn('[API] Token okunurken hata:', err);
-    }
-    return config;
-  },
-  (error) => {
-    console.error('[API İstek Hatası]', error);
-    return Promise.reject(error);
-  }
-);
+// GEREKSİNİM 1: Kullanıcı Kaydı
+export const registerUser = async (firstName, lastName, email, password) => {
+  const res = await publicAxios.post('/api/users/register', {
+    firstName, lastName, email, password
+  })
+  await AsyncStorage.setItem('token', res.data.token)
+  await AsyncStorage.setItem('user', JSON.stringify(res.data.user))
+  return res.data
+}
 
-// ---------------------------------------------------------------------------
-// Response Interceptor — Hata loglama
-// ---------------------------------------------------------------------------
+// GEREKSİNİM 2: Kullanıcı Girişi
+export const loginUser = async (email, password) => {
+  const res = await publicAxios.post('/api/users/login', { email, password })
+  await AsyncStorage.setItem('token', res.data.token)
+  await AsyncStorage.setItem('user', JSON.stringify(res.data.user))
+  return res.data
+}
 
-api.interceptors.response.use(
-  (response) => {
-    console.log(
-      `[API Yanıt] ${response.status} ${response.config.url}`,
-      response.data
-    );
-    return response;
-  },
-  (error) => {
-    const status = error.response?.status;
-    const message = error.response?.data?.message || error.message;
-    console.error(`[API Hata] ${status ?? 'Bağlantı'}: ${message}`);
-    return Promise.reject(error);
-  }
-);
+// GEREKSİNİM 3-5: Ürün İşlemleri
+export const getProducts = async (category = '', search = '') => {
+  const params = {}
+  if (category && category !== 'Tümü') params.category = category
+  if (search) params.search = search
+  const res = await publicAxios.get('/api/products', { params })
+  return res.data.products
+}
 
-// ---------------------------------------------------------------------------
-// Yardımcı — Standart hata mesajı
-// ---------------------------------------------------------------------------
+export const addProduct = async (productData) => {
+  const api = await authAxios()
+  const res = await api.post('/api/products', productData)
+  return res.data.product
+}
 
-const handleError = (error, defaultMsg = 'Bir hata oluştu.') => {
-  const msg = error.response?.data?.message || defaultMsg;
-  Alert.alert('Hata', msg);
-  throw error;
-};
-
-// ===========================================================================
-// 1. AUTH
-// ===========================================================================
-
-/**
- * Yeni kullanıcı kaydı
- * @param {{ name: string, email: string, password: string }} data
- */
-export const registerUser = async (data) => {
-  try {
-    const response = await api.post('/api/auth/register', data);
-    Alert.alert('Başarılı', 'Kayıt işlemi tamamlandı! Giriş yapabilirsiniz.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Kayıt olurken bir hata oluştu.');
-  }
-};
-
-/**
- * Kullanıcı girişi — token AsyncStorage'a kaydedilir
- * @param {{ email: string, password: string }} data
- */
-export const loginUser = async (data) => {
-  try {
-    const response = await api.post('/api/auth/login', data);
-    const { token, user } = response.data;
-    if (token) {
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-      console.log('[Auth] Token kaydedildi.');
-    }
-    Alert.alert('Hoş Geldiniz', `Merhaba, ${user?.name ?? 'Kullanıcı'}!`);
-    return response.data;
-  } catch (error) {
-    handleError(error, 'E-posta veya şifre hatalı.');
-  }
-};
-
-// ===========================================================================
-// 2. ÜRÜNLER (Products)
-// ===========================================================================
-
-/**
- * Tüm ürünleri getir
- * @param {{ category?: string, search?: string }} params
- */
-export const getProducts = async (params = {}) => {
-  try {
-    const response = await api.get('/api/products', { params });
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Ürünler yüklenirken bir hata oluştu.');
-  }
-};
-
-/**
- * Yeni ürün ekle (Admin)
- * @param {FormData | object} data
- */
-export const addProduct = async (data) => {
-  try {
-    const isFormData = data instanceof FormData;
-    const response = await api.post('/api/products', data, {
-      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
-    });
-    Alert.alert('Başarılı', 'Ürün başarıyla eklendi.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Ürün eklenirken bir hata oluştu.');
-  }
-};
-
-/**
- * Ürün sil (Admin)
- * @param {string} productId
- */
 export const deleteProduct = async (productId) => {
-  try {
-    const response = await api.delete(`/api/products/${productId}`);
-    Alert.alert('Başarılı', 'Ürün başarıyla silindi.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Ürün silinirken bir hata oluştu.');
-  }
-};
+  const api = await authAxios()
+  const res = await api.delete(`/api/products/${productId}`)
+  return res.data
+}
 
-// ===========================================================================
-// 3. SİPARİŞLER (Orders)
-// ===========================================================================
+// GEREKSİNİM 6: Sipariş Listeleme
+export const getOrders = async (userId) => {
+  const api = await authAxios()
+  const res = await api.get(`/api/orders/${userId}`)
+  return res.data.orders
+}
 
-/**
- * Tüm siparişleri getir (Admin veya kullanıcının kendi siparişleri)
- */
-export const getOrders = async () => {
-  try {
-    const response = await api.get('/api/orders');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Siparişler yüklenirken bir hata oluştu.');
-  }
-};
+// GEREKSİNİM 7: Sipariş Güncelleme
+export const updateOrder = async (orderId, address, recipient, giftNote) => {
+  const api = await authAxios()
+  const res = await api.put(`/api/orders/${orderId}`, {
+    address, recipient, giftNote
+  })
+  return res.data.order
+}
 
-/**
- * Sipariş durumunu güncelle (Admin)
- * @param {string} orderId
- * @param {{ status: string }} data
- */
-export const updateOrder = async (orderId, data) => {
-  try {
-    const response = await api.put(`/api/orders/${orderId}`, data);
-    Alert.alert('Başarılı', 'Sipariş güncellendi.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Sipariş güncellenirken bir hata oluştu.');
-  }
-};
+// GEREKSİNİM 8: Yorum Ekleme
+export const addComment = async (productId, text, rating) => {
+  const api = await authAxios()
+  const res = await api.post(
+    `/api/comments/products/${productId}/comments`,
+    { text, rating }
+  )
+  return res.data.comment
+}
 
-/**
- * Sipariş oluştur
- * @param {{ items: Array, address: object, note?: string }} data
- */
-export const createOrder = async (data) => {
-  try {
-    const response = await api.post('/api/orders', data);
-    Alert.alert('Başarılı', 'Siparişiniz alındı! En kısa sürede hazırlanacak.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Sipariş oluşturulurken bir hata oluştu.');
-  }
-};
+// GEREKSİNİM 9: Yorum Silme
+export const deleteComment = async (commentId) => {
+  const api = await authAxios()
+  const res = await api.delete(`/api/comments/${commentId}`)
+  return res.data
+}
 
-/**
- * Sipariş iptal et
- * @param {string} orderId
- */
-export const cancelOrder = async (orderId) => {
-  try {
-    const response = await api.put(`/api/orders/${orderId}/cancel`);
-    Alert.alert('Başarılı', 'Siparişiniz iptal edildi.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Sipariş iptal edilirken bir hata oluştu.');
-  }
-};
+// ── EDA'NIN GEREKSİNİMLERİ ──
 
-// ===========================================================================
-// 4. YORUMLAR (Comments)
-// ===========================================================================
+// EDA 1: Sepete Ürün Ekleme
+export const addToCart = async (productId, quantity = 1) => {
+  const api = await authAxios()
+  const res = await api.post('/api/cart/add', {
+    productId: String(productId),
+    quantity: Number(quantity)
+  })
+  return res.data.cart
+}
 
-/**
- * Ürüne yorum ekle
- * @param {string} productId
- * @param {{ text: string, rating: number }} data
- */
-export const addComment = async (productId, data) => {
-  try {
-    const response = await api.post(`/api/products/${productId}/comments`, data);
-    Alert.alert('Başarılı', 'Yorumunuz eklendi.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Yorum eklenirken bir hata oluştu.');
-  }
-};
-
-/**
- * Yorumu sil
- * @param {string} productId
- * @param {string} commentId
- */
-export const deleteComment = async (productId, commentId) => {
-  try {
-    const response = await api.delete(
-      `/api/products/${productId}/comments/${commentId}`
-    );
-    Alert.alert('Başarılı', 'Yorum silindi.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Yorum silinirken bir hata oluştu.');
-  }
-};
-
-// ===========================================================================
-// 5. SEPET (Cart)
-// ===========================================================================
-
-/**
- * Sepeti getir
- */
-export const getCart = async () => {
-  try {
-    const response = await api.get('/api/cart');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Sepet yüklenirken bir hata oluştu.');
-  }
-};
-
-/**
- * Sepete ürün ekle
- * @param {{ productId: string, quantity: number }} data
- */
-export const addToCart = async (data) => {
-  try {
-    const response = await api.post('/api/cart', data);
-    Alert.alert('Başarılı', 'Ürün sepete eklendi.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Ürün sepete eklenirken bir hata oluştu.');
-  }
-};
-
-/**
- * Sepetten ürün çıkar
- * @param {string} itemId
- */
+// EDA 2: Sepetten Ürün Silme
 export const removeFromCart = async (itemId) => {
-  try {
-    const response = await api.delete(`/api/cart/${itemId}`);
-    Alert.alert('Başarılı', 'Ürün sepetten çıkarıldı.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Ürün sepetten çıkarılırken bir hata oluştu.');
-  }
-};
+  const api = await authAxios()
+  const res = await api.delete(`/api/cart/items/${itemId}`)
+  return res.data.cart
+}
 
-/**
- * Sepetteki ürün miktarını güncelle
- * @param {string} itemId
- * @param {{ quantity: number }} data
- */
-export const updateCartItem = async (itemId, data) => {
-  try {
-    const response = await api.put(`/api/cart/${itemId}`, data);
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Sepet güncellenirken bir hata oluştu.');
-  }
-};
+// EDA 3: Sepet Güncelleme
+export const updateCartItem = async (itemId, quantity) => {
+  const api = await authAxios()
+  const res = await api.put(`/api/cart/items/${itemId}`, {
+    quantity: Number(quantity)
+  })
+  return res.data.cart
+}
 
-// ===========================================================================
-// 6. HEDİYE NOTU (Gift Note)
-// ===========================================================================
+// EDA 4: Sepet Listeleme
+export const getCart = async () => {
+  const api = await authAxios()
+  const res = await api.get('/api/cart')
+  return res.data.cart
+}
 
-/**
- * Siparişe hediye notu ekle
- * @param {string} orderId
- * @param {{ note: string }} data
- */
-export const addGiftNote = async (orderId, data) => {
-  try {
-    const response = await api.post(`/api/orders/${orderId}/gift-note`, data);
-    Alert.alert('Başarılı', 'Hediye notunuz eklendi.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Hediye notu eklenirken bir hata oluştu.');
-  }
-};
+// EDA 5: Sipariş Oluşturma
+export const createOrder = async (address, recipient, items, giftNote = '') => {
+  const api = await authAxios()
+  const res = await api.post('/api/orders', {
+    address, recipient, items, giftNote
+  })
+  return res.data.order
+}
 
-/**
- * Hediye notunu sil
- * @param {string} orderId
- */
-export const deleteGiftNote = async (orderId) => {
-  try {
-    const response = await api.delete(`/api/orders/${orderId}/gift-note`);
-    Alert.alert('Başarılı', 'Hediye notu silindi.');
-    return response.data;
-  } catch (error) {
-    handleError(error, 'Hediye notu silinirken bir hata oluştu.');
-  }
-};
+// EDA 6: Sipariş İptali
+export const cancelOrder = async (orderId) => {
+  const api = await authAxios()
+  const res = await api.delete(`/api/orders/${orderId}/cancel`)
+  return res.data
+}
 
-export default api;
+// EDA 7: Hediye Notu Ekleme
+export const addGiftNote = async (orderId, note) => {
+  const api = await authAxios()
+  const res = await api.post(`/api/orders/${orderId}/notes`, { note })
+  return res.data.giftNote
+}
+
+// EDA 8: Hediye Notu Silme
+export const deleteGiftNote = async (orderId, noteId) => {
+  const api = await authAxios()
+  const res = await api.delete(`/api/orders/${orderId}/notes/${noteId}`)
+  return res.data
+}

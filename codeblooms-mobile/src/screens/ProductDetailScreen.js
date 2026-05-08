@@ -1,517 +1,424 @@
-/**
- * CodeBlooms Mobile — ProductDetailScreen
- *
- * Ürün detay, yıldız değerlendirme ve yorum ekranı.
- * API: getProducts (tek ürün), addComment, deleteComment
- */
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react'
 import {
-  View, Text, Image, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, TextInput,
-  KeyboardAvoidingView, Platform,
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getProducts, addComment, deleteComment } from '../api/api';
-
-// ---------------------------------------------------------------------------
-// Sabitler
-// ---------------------------------------------------------------------------
-
-const COLORS = {
-  cream: '#F5F0E8', beige: '#EDE8DE', bordeaux: '#7B1C3E',
-  text: '#1A1A1A', white: '#FFFFFF', placeholder: '#9E9E9E',
-  border: '#C8C0B0', star: '#F4C430', starEmpty: '#D0C8B8',
-  danger: '#C0392B', dangerBg: '#FDECEA',
-};
-
-const FALLBACK = 'https://via.placeholder.com/600x400/EDE8DE/7B1C3E?text=CodeBlooms';
-
-// ---------------------------------------------------------------------------
-// StarRow — tıklanabilir yıldız satırı
-// ---------------------------------------------------------------------------
-
-const StarRow = ({ value, onChange }) => (
-  <View style={styles.starRow}>
-    {[1, 2, 3, 4, 5].map((n) => (
-      <TouchableOpacity key={n} onPress={() => onChange(n)} activeOpacity={0.7}>
-        <Text style={[styles.star, { color: n <= value ? COLORS.star : COLORS.starEmpty }]}>
-          ★
-        </Text>
-      </TouchableOpacity>
-    ))}
-  </View>
-);
-
-// ---------------------------------------------------------------------------
-// CommentItem
-// ---------------------------------------------------------------------------
-
-const CommentItem = ({ item, currentUserId, onDelete }) => {
-  const isOwner =
-    currentUserId &&
-    (item.user?._id === currentUserId || item.user === currentUserId);
-
-  return (
-    <View style={styles.commentCard}>
-      <View style={styles.commentHeader}>
-        <Text style={styles.commentAuthor}>
-          {item.user?.name ?? 'Kullanıcı'}
-        </Text>
-        <View style={styles.commentRight}>
-          <Text style={styles.commentStars}>
-            {'★'.repeat(item.rating ?? 0)}
-            {'☆'.repeat(5 - (item.rating ?? 0))}
-          </Text>
-          {isOwner && (
-            <TouchableOpacity
-              style={styles.deleteCommentBtn}
-              onPress={() => onDelete(item._id)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={styles.deleteCommentText}>Sil</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-      <Text style={styles.commentText}>{item.text}</Text>
-    </View>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// ProductDetailScreen
-// ---------------------------------------------------------------------------
+  View, Text, TextInput, TouchableOpacity,
+  StyleSheet, ActivityIndicator, Image, ScrollView,
+  KeyboardAvoidingView, Platform, Modal, Keyboard
+} from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { addToCart, addComment, deleteComment } from '../api/api'
 
 export default function ProductDetailScreen({ route, navigation }) {
-  const { productId, productName } = route.params ?? {};
+  const { product } = route.params
 
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
+  const [comments, setComments] = useState(product.comments || [])
+  const [commentText, setCommentText] = useState('')
+  const [rating, setRating] = useState(5)
+  const [addingComment, setAddingComment] = useState(false)
+  const [addingCart, setAddingCart] = useState(false)
 
-  // Yorum state
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
+  // Giriş yapmış kullanıcı — yorum user bilgisi backend'den dönmezse buradan enjekte edilir
+  const [currentUser, setCurrentUser] = useState(null)
 
-  // ── Kullanıcı ID'sini AsyncStorage'dan al ─────────────────────────────────
-
+  // Sayfa açılınca AsyncStorage'dan kullanıcıyı çek
   useEffect(() => {
-    AsyncStorage.getItem('user')
-      .then((raw) => {
-        if (raw) {
-          const u = JSON.parse(raw);
-          setCurrentUserId(u._id ?? u.id ?? null);
-        }
-      })
-      .catch(() => { });
-  }, []);
-
-  // ── Ürünü Çek ─────────────────────────────────────────────────────────────
-
-  const fetchProduct = useCallback(async () => {
-    if (!productId) return;
-    setLoading(true);
-    try {
-      const data = await getProducts();
-      const list = Array.isArray(data) ? data : data?.products ?? [];
-      const found = list.find((p) => p._id === productId);
-      if (found) {
-        setProduct(found);
-        navigation.setOptions({ title: found.name });
-      } else {
-        Alert.alert('Hata', 'Ürün bulunamadı.');
+    const loadUser = async () => {
+      try {
+        const userStr = await AsyncStorage.getItem('user')
+        if (userStr) setCurrentUser(JSON.parse(userStr))
+      } catch {
+        // sessizce geç
       }
-    } catch {
-      Alert.alert('Hata', 'Ürün yüklenirken bir sorun oluştu.');
-    } finally {
-      setLoading(false);
     }
-  }, [productId]);
+    loadUser()
+  }, [])
 
-  useEffect(() => {
-    fetchProduct();
-  }, [fetchProduct]);
+  // ScrollView ref — yorum alanına odaklanınca sayfayı otomatik afla kaydır
+  const scrollViewRef = useRef(null)
 
-  // ── Yorum Gönder ──────────────────────────────────────────────────────────
+  // Özel Pop-up state
+  const [popup, setPopup] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    actions: null,
+  })
+  const showPopup = (title, message, actions = null) =>
+    setPopup({ visible: true, title, message, actions })
+  const closePopup = () => setPopup((p) => ({ ...p, visible: false }))
 
-  const handleAddComment = async () => {
-    if (rating === 0) {
-      Alert.alert('Eksik Bilgi', 'Lütfen bir puan seçin.');
-      return;
+  // ── Sepete Ekle — Auth Guard ────────────────────────────────────────────────
+  const handleAddToCart = async () => {
+    // Token kontrolü — yoksa giriş ekranına yönlendir
+    const token = await AsyncStorage.getItem('token')
+    if (!token) {
+      showPopup(
+        'Giriş Gerekli',
+        'Sepete ürün eklemek için giriş yapmanız gerekmektedir.',
+        [
+          {
+            text: 'Giriş Yap',
+            onPress: () => {
+              closePopup()
+              navigation.navigate('Login')
+            },
+          },
+          { text: 'İptal', style: 'cancel', onPress: closePopup },
+        ]
+      )
+      return
     }
-    if (!comment.trim()) {
-      Alert.alert('Eksik Bilgi', 'Lütfen yorum yazın.');
-      return;
-    }
-    setSubmitting(true);
+
+    setAddingCart(true)
     try {
-      await addComment(productId, { text: comment.trim(), rating });
-      setComment('');
-      setRating(0);
-      fetchProduct();
-    } catch {
-      // api.js hata alert'i gösteriyor
+      await addToCart(product._id, 1)
+      showPopup(
+        '🛒 Sepete Eklendi',
+        `${product.name} sepetinize eklendi!`,
+        [
+          {
+            text: 'Sepete Git',
+            onPress: () => {
+              closePopup()
+              navigation.navigate('Cart')
+            },
+          },
+          { text: 'Alışverişe Devam', style: 'cancel', onPress: closePopup },
+        ]
+      )
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Sepete eklenemedi'
+      showPopup('Hata', msg)
     } finally {
-      setSubmitting(false);
+      setAddingCart(false)
     }
-  };
-
-  // ── Yorum Sil ─────────────────────────────────────────────────────────────
-
-  const handleDeleteComment = (commentId) => {
-    Alert.alert('Yorumu Sil', 'Bu yorumu silmek istediğinizden emin misiniz?', [
-      { text: 'Vazgeç', style: 'cancel' },
-      {
-        text: 'Sil',
-        style: 'destructive',
-        onPress: async () => {
-          setDeletingId(commentId);
-          try {
-            await deleteComment(productId, commentId);
-            fetchProduct();
-          } catch {
-            // api.js hata gösteriyor
-          } finally {
-            setDeletingId(null);
-          }
-        },
-      },
-    ]);
-  };
-
-  // ── Yükleniyor ────────────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.bordeaux} />
-        <Text style={styles.loadingText}>Ürün yükleniyor...</Text>
-      </View>
-    );
   }
 
-  if (!product) return null;
+  // ── Yorum Ekle ──────────────────────────────────────────────────────────────
+  const handleAddComment = async () => {
+    // Klavyeyi hemen kapat — buton basılınca klavye kapanmalı
+    Keyboard.dismiss()
 
-  const comments = product.comments ?? [];
-  const avgRating = comments.length
-    ? (comments.reduce((s, c) => s + (c.rating ?? 0), 0) / comments.length).toFixed(1)
-    : null;
+    if (!commentText.trim()) {
+      showPopup('Hata', 'Yorum metni boş olamaz')
+      return
+    }
+    setAddingComment(true)
+    try {
+      const newComment = await addComment(product._id, commentText.trim(), rating)
+      if (newComment) {
+        // ── Backend user objesini populate etmemiş olabilir.
+        // Eksikse AsyncStorage'dan alınan currentUser'ı enjekte et.
+        const commentToStore = { ...newComment }
+        const hasUserName =
+          commentToStore.user?.firstName ||
+          commentToStore.user?.lastName ||
+          commentToStore.user?.name ||
+          commentToStore.user?.username ||
+          commentToStore.user?.email
+        if (!hasUserName && currentUser) {
+          commentToStore.user = currentUser
+        }
+        setComments((prev) => [commentToStore, ...prev])
+      }
+      // State sıfırlanırken klavyenin yeniden açılmasını önle
+      Keyboard.dismiss()
+      setCommentText('')
+      setRating(5)
+      showPopup('✓ Yorum Eklendi', 'Yorumunuz başarıyla paylaşıldı.')
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Yorum eklenemedi'
+      showPopup('Hata', msg)
+    } finally {
+      setAddingComment(false)
+    }
+  }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Yorum Sil ───────────────────────────────────────────────────────────────
+  const handleDeleteComment = (comment) => {
+    showPopup(
+      'Yorumu Sil',
+      'Bu yorum kalıcı olarak silinecek. Emin misiniz?',
+      [
+        {
+          text: 'Sil',
+          onPress: async () => {
+            closePopup()
+            try {
+              await deleteComment(comment._id)
+              setComments((prev) => prev.filter((c) => c._id !== comment._id))
+            } catch (err) {
+              const msg = err.response?.data?.message || err.message || 'Yorum silinemedi'
+              showPopup('Hata', msg)
+            }
+          },
+        },
+        { text: 'İptal', style: 'cancel', onPress: closePopup },
+      ]
+    )
+  }
+
+  // ── Yıldız render ───────────────────────────────────────────────────────────
+  const renderStars = (count, interactive = false) => (
+    <View style={styles.starsRow}>
+      {[1, 2, 3, 4, 5].map((s) => (
+        <TouchableOpacity
+          key={s}
+          onPress={interactive ? () => setRating(s) : undefined}
+          disabled={!interactive}
+          activeOpacity={interactive ? 0.7 : 1}
+        >
+          <Text style={[styles.star, s <= count && styles.starFilled]}>★</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  )
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Ürün Resmi */}
+        {product.imageUrl ? (
+          <Image
+            source={{ uri: product.imageUrl }}
+            style={styles.productImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Text style={styles.imagePlaceholderText}>🌸</Text>
+          </View>
+        )}
 
-        {/* ── Ürün Görseli ── */}
-        <Image
-          source={{ uri: product.imageUrl || product.image || FALLBACK }}
-          style={styles.heroImage}
-          resizeMode="cover"
-        />
-
-        {/* ── Ürün Bilgileri ── */}
+        {/* Ürün Bilgisi */}
         <View style={styles.infoSection}>
           <Text style={styles.productName}>{product.name}</Text>
-
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>
-              {Number(product.price).toLocaleString('tr-TR', {
-                minimumFractionDigits: 2,
-              })}{' '}
-              ₺
-            </Text>
-            {avgRating && (
-              <View style={styles.ratingPill}>
-                <Text style={styles.ratingPillText}>★ {avgRating}</Text>
-                <Text style={styles.ratingCount}> ({comments.length})</Text>
-              </View>
-            )}
-          </View>
-
+          <Text style={styles.productPrice}>{product.price} ₺</Text>
           {product.description ? (
-            <Text style={styles.description}>{product.description}</Text>
+            <Text style={styles.productDesc}>{product.description}</Text>
           ) : null}
-
           {product.stock !== undefined && (
             <Text style={styles.stockText}>
-              {product.stock > 0
-                ? `✅ Stokta ${product.stock} adet var`
-                : '❌ Stokta yok'}
+              {product.stock > 0 ? `Stok: ${product.stock} adet` : '⚠️ Stokta yok'}
             </Text>
           )}
         </View>
 
-        {/* ── Sepete Ekle (Eda'nın ekleyeceği placeholder) ── */}
+        {/* Sepete Ekle */}
         <TouchableOpacity
-          style={styles.cartBtn}
-          activeOpacity={0.85}
-          onPress={() =>
-            Alert.alert('Yakında', 'Sepet özelliği çok yakında eklenecek! 🌸')
-          }
+          style={[styles.cartBtn, addingCart && styles.cartBtnDisabled]}
+          onPress={handleAddToCart}
+          disabled={addingCart || product.stock === 0}
         >
-          <Text style={styles.cartBtnText}>🛒  Sepete Ekle</Text>
+          {addingCart
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.cartBtnText}>🛒 Sepete Ekle</Text>
+          }
         </TouchableOpacity>
 
-        {/* ════ YORUMLAR ════ */}
+        {/* Yorum Formu */}
+        <View style={styles.commentForm}>
+          <Text style={styles.sectionTitle}>💬 Yorum Yap</Text>
+          <Text style={styles.ratingLabel}>Puanınız:</Text>
+          {renderStars(rating, true)}
+          <TextInput
+            style={styles.commentInput}
+            value={commentText}
+            onChangeText={setCommentText}
+            placeholder="Ürün hakkında düşünceleriniz..."
+            multiline
+            numberOfLines={3}
+            autoFocus={false}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true })
+              }, 300)
+            }}
+          />
+          <TouchableOpacity
+            style={[styles.submitBtn, addingComment && styles.submitBtnDisabled]}
+            onPress={handleAddComment}
+            disabled={addingComment}
+          >
+            {addingComment
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={styles.submitBtnText}>Yorum Gönder</Text>
+            }
+          </TouchableOpacity>
+        </View>
+
+        {/* Yorumlar */}
         <View style={styles.commentsSection}>
-          <Text style={styles.sectionTitle}>Değerlendirmeler</Text>
-
-          {/* ── Yorum Yazma Formu ── */}
-          <View style={styles.commentForm}>
-            <Text style={styles.formLabel}>Puanınız</Text>
-            <StarRow value={rating} onChange={setRating} />
-
-            <Text style={styles.formLabel}>Yorumunuz</Text>
-            <TextInput
-              style={[styles.input, styles.inputMultiline]}
-              placeholder="Ürün hakkındaki düşüncelerinizi paylaşın..."
-              placeholderTextColor={COLORS.placeholder}
-              value={comment}
-              onChangeText={setComment}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-
-            <TouchableOpacity
-              style={[styles.submitBtn, submitting && styles.btnDisabled]}
-              onPress={handleAddComment}
-              disabled={submitting}
-              activeOpacity={0.8}
-            >
-              {submitting ? (
-                <ActivityIndicator color={COLORS.white} size="small" />
-              ) : (
-                <Text style={styles.submitBtnText}>Yorumu Gönder</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Mevcut Yorumlar ── */}
+          <Text style={styles.sectionTitle}>📝 Yorumlar ({comments.length})</Text>
           {comments.length === 0 ? (
-            <View style={styles.noComment}>
-              <Text style={styles.noCommentText}>
-                Henüz yorum yok. İlk yorumu sen yap! 🌸
-              </Text>
-            </View>
+            <Text style={styles.noComments}>Henüz yorum yok. İlk yorumu siz yapın!</Text>
           ) : (
             comments.map((c) => (
-              <CommentItem
-                key={c._id}
-                item={c}
-                currentUserId={currentUserId}
-                onDelete={handleDeleteComment}
-              />
+              <View key={String(c._id)} style={styles.commentCard}>
+                <View style={styles.commentHeader}>
+                  <Text style={styles.commentUser}>
+                    {(() => {
+                      const u = c.user || c.userId
+                      if (!u) return 'İsimsiz Kullanıcı'
+                      // firstName + lastName birleştir
+                      const fullName = [
+                        u.firstName || '',
+                        u.lastName || '',
+                      ].filter(Boolean).join(' ')
+                      if (fullName.trim()) return fullName.trim()
+                      // Fallback zinciri
+                      return u.name || u.username || u.email || 'İsimsiz Kullanıcı'
+                    })()}
+                  </Text>
+                  {renderStars(c.rating)}
+                </View>
+                <Text style={styles.commentText}>{c.text}</Text>
+                <TouchableOpacity
+                  style={styles.deleteCommentBtn}
+                  onPress={() => handleDeleteComment(c)}
+                >
+                  <Text style={styles.deleteCommentText}>🗑 Sil</Text>
+                </TouchableOpacity>
+              </View>
             ))
           )}
         </View>
       </ScrollView>
+
+      {/* ── Özel Pop-up Modal ── */}
+      <Modal
+        visible={popup.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={closePopup}
+      >
+        <View style={styles.popupOverlay}>
+          <View style={styles.popupBox}>
+            {popup.title ? (
+              <Text style={styles.popupTitle}>{popup.title}</Text>
+            ) : null}
+            {popup.message ? (
+              <Text style={styles.popupMessage}>{popup.message}</Text>
+            ) : null}
+            <View style={styles.popupActions}>
+              {popup.actions ? (
+                popup.actions.map((a, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    style={[
+                      styles.popupBtn,
+                      a.style === 'cancel' && styles.popupBtnCancel,
+                    ]}
+                    onPress={a.onPress}
+                  >
+                    <Text
+                      style={[
+                        styles.popupBtnText,
+                        a.style === 'cancel' && styles.popupBtnCancelText,
+                      ]}
+                    >
+                      {a.text}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <TouchableOpacity style={styles.popupBtn} onPress={closePopup}>
+                  <Text style={styles.popupBtnText}>Tamam</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
-  );
+  )
 }
 
-// ---------------------------------------------------------------------------
-// StyleSheet
-// ---------------------------------------------------------------------------
-
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
+  container: { flex: 1, backgroundColor: '#F5F0E8' },
+  content: { flexGrow: 1, paddingBottom: 150 },
 
-  // ── Loading ───────────────────────────────────────────────────────────────
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.cream,
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: COLORS.bordeaux,
-    opacity: 0.7,
-  },
-
-  // ── Hero ──────────────────────────────────────────────────────────────────
-  heroImage: {
+  productImage: { width: '100%', height: 280 },
+  imagePlaceholder: {
     width: '100%',
-    height: 300,
-    backgroundColor: COLORS.beige,
-  },
-
-  // ── Bilgi ─────────────────────────────────────────────────────────────────
-  infoSection: {
-    padding: 20,
-    backgroundColor: COLORS.white,
-  },
-  productName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: COLORS.text,
-    marginBottom: 10,
-    lineHeight: 28,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  price: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: COLORS.bordeaux,
-  },
-  ratingPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF8E1',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  ratingPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#B8860B',
-  },
-  ratingCount: {
-    fontSize: 12,
-    color: COLORS.text,
-    opacity: 0.6,
-  },
-  description: {
-    fontSize: 14,
-    color: COLORS.text,
-    opacity: 0.7,
-    lineHeight: 21,
-    marginBottom: 10,
-  },
-  stockText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.text,
-    opacity: 0.65,
-  },
-
-  // ── Sepete Ekle ───────────────────────────────────────────────────────────
-  cartBtn: {
-    backgroundColor: COLORS.bordeaux,
-    marginHorizontal: 16,
-    marginVertical: 16,
-    borderRadius: 12,
-    height: 56,
-    alignItems: 'center',
+    height: 280,
+    backgroundColor: '#EDE8DE',
     justifyContent: 'center',
-    shadowColor: COLORS.bordeaux,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.32,
-    shadowRadius: 10,
-    elevation: 5,
+    alignItems: 'center',
   },
-  cartBtnText: {
-    color: COLORS.white,
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
+  imagePlaceholderText: { fontSize: 72 },
 
-  // ══ YORUMLAR ══════════════════════════════════════════════════════════════
-  commentsSection: {
+  infoSection: { padding: 20 },
+  productName: { fontSize: 22, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 8 },
+  productPrice: { fontSize: 24, fontWeight: 'bold', color: '#7B1C3E', marginBottom: 8 },
+  productDesc: { fontSize: 15, color: '#555', lineHeight: 22 },
+  stockText: { marginTop: 8, fontSize: 13, color: '#888' },
+
+  cartBtn: {
+    marginHorizontal: 20,
+    backgroundColor: '#7B1C3E',
+    borderRadius: 50,
     padding: 16,
-    paddingTop: 4,
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: COLORS.bordeaux,
-    marginBottom: 14,
-  },
+  cartBtnDisabled: { opacity: 0.6 },
+  cartBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 
-  // ── Yorum Formu ───────────────────────────────────────────────────────────
   commentForm: {
-    backgroundColor: COLORS.beige,
-    borderRadius: 14,
+    marginHorizontal: 20,
+    backgroundColor: '#fff',
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  formLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 8,
-    marginTop: 4,
-    letterSpacing: 0.3,
-  },
-  starRow: {
-    flexDirection: 'row',
-    marginBottom: 4,
-    gap: 4,
-  },
-  star: {
-    fontSize: 32,
-  },
-  input: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#7B1C3E', marginBottom: 12 },
+  ratingLabel: { fontSize: 13, color: '#555', marginBottom: 6 },
+  starsRow: { flexDirection: 'row', marginBottom: 12 },
+  star: { fontSize: 28, color: '#D1D5DB', marginRight: 4 },
+  starFilled: { color: '#F59E0B' },
+  commentInput: {
+    borderWidth: 1,
+    borderColor: '#EDE8DE',
+    borderRadius: 10,
+    padding: 12,
     fontSize: 14,
-    color: COLORS.text,
-    minHeight: 44,
-  },
-  inputMultiline: {
-    minHeight: 88,
-    paddingTop: 10,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    backgroundColor: '#FAFAFA',
+    marginBottom: 12,
   },
   submitBtn: {
-    backgroundColor: COLORS.bordeaux,
-    borderRadius: 8,
-    height: 48,
+    backgroundColor: '#7B1C3E',
+    borderRadius: 50,
+    padding: 14,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 14,
-    shadowColor: COLORS.bordeaux,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
   },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  submitBtnText: {
-    color: COLORS.white,
-    fontSize: 15,
-    fontWeight: '700',
-  },
+  submitBtnDisabled: { opacity: 0.6 },
+  submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
 
-  // ── Yorum Kartı ───────────────────────────────────────────────────────────
+  commentsSection: { marginHorizontal: 20 },
+  noComments: { color: '#999', fontSize: 14, textAlign: 'center', paddingVertical: 16 },
   commentCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 2,
   },
   commentHeader: {
@@ -520,53 +427,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  commentAuthor: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.bordeaux,
-    flex: 1,
-  },
-  commentRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  commentStars: {
-    fontSize: 13,
-    color: COLORS.star,
-    letterSpacing: 1,
-  },
-  deleteCommentBtn: {
-    backgroundColor: COLORS.dangerBg,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    minWidth: 36,
-    minHeight: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteCommentText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.danger,
-  },
-  commentText: {
-    fontSize: 13,
-    color: COLORS.text,
-    opacity: 0.75,
-    lineHeight: 19,
-  },
+  commentUser: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
+  commentText: { fontSize: 14, color: '#444', lineHeight: 20, marginBottom: 8 },
+  deleteCommentBtn: { alignSelf: 'flex-end' },
+  deleteCommentText: { fontSize: 12, color: '#CC2222' },
 
-  // ── Boş Yorum ─────────────────────────────────────────────────────────────
-  noComment: {
+  // Özel Pop-up
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 24,
+    padding: 32,
   },
-  noCommentText: {
-    fontSize: 14,
-    color: COLORS.text,
-    opacity: 0.45,
+  popupBox: {
+    backgroundColor: '#F5F0E8',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
+  },
+  popupTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#7B1C3E',
     textAlign: 'center',
+    marginBottom: 10,
   },
-});
+  popupMessage: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  popupActions: { flexDirection: 'row', gap: 10 },
+  popupBtn: {
+    flex: 1,
+    backgroundColor: '#7B1C3E',
+    borderRadius: 50,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  popupBtnCancel: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#EDE8DE',
+  },
+  popupBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  popupBtnCancelText: { color: '#7B1C3E' },
+})

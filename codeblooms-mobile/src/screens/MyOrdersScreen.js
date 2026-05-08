@@ -1,328 +1,476 @@
-/**
- * CodeBlooms Mobile — MyOrdersScreen
- * API: getOrders, updateOrder
- */
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, Modal, TextInput,
-  KeyboardAvoidingView, Platform,
-} from 'react-native';
-import { getOrders, updateOrder } from '../api/api';
+  View, Text, TouchableOpacity, FlatList,
+  StyleSheet, ActivityIndicator, TextInput, Modal,
+  Image, KeyboardAvoidingView, Platform
+} from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { getOrders, updateOrder } from '../api/api'
 
-// ---------------------------------------------------------------------------
-// Sabitler
-// ---------------------------------------------------------------------------
+const STATUS_LABELS = {
+  preparing: 'Hazırlanıyor',
+  shipped: 'Kargoda',
+  delivered: 'Teslim Edildi',
+  cancelled: 'İptal Edildi',
+}
 
-const COLORS = {
-  cream: '#F5F0E8', beige: '#EDE8DE', bordeaux: '#7B1C3E',
-  text: '#1A1A1A', white: '#FFFFFF', placeholder: '#9E9E9E',
-  border: '#C8C0B0', overlay: 'rgba(0,0,0,0.45)',
-};
-
-const STATUS_MAP = {
-  beklemede:       { label: 'Beklemede',       bg: '#FFF3CD', color: '#856404' },
-  hazirlaniyor:    { label: 'Hazırlanıyor',    bg: '#CCE5FF', color: '#004085' },
-  kargoya_verildi: { label: 'Kargoya Verildi', bg: '#D4EDDA', color: '#155724' },
-  kargoda:         { label: 'Kargoda',          bg: '#D1ECF1', color: '#0C5460' },
-  teslim_edildi:   { label: 'Teslim Edildi',   bg: '#D4EDDA', color: '#155724' },
-  iptal_edildi:    { label: 'İptal Edildi',    bg: '#F8D7DA', color: '#721C24' },
-};
-
-const EDITABLE = new Set(['beklemede', 'hazirlaniyor', '', undefined, null]);
-const isEditable = (s) => EDITABLE.has(s?.toLowerCase?.());
-
-const formatDate = (d) => {
-  if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' }); }
-  catch { return d; }
-};
-
-// ---------------------------------------------------------------------------
-// StatusBadge
-// ---------------------------------------------------------------------------
-
-const StatusBadge = ({ status }) => {
-  const key = status?.toLowerCase?.() ?? '';
-  const m = STATUS_MAP[key] ?? { label: status ?? 'Bilinmiyor', bg: '#E2E3E5', color: '#383D41' };
-  return (
-    <View style={[styles.badge, { backgroundColor: m.bg }]}>
-      <Text style={[styles.badgeText, { color: m.color }]}>{m.label}</Text>
-    </View>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// OrderCard
-// ---------------------------------------------------------------------------
-
-const OrderCard = ({ item, onEdit }) => (
-  <View style={styles.card}>
-    <View style={styles.cardHeader}>
-      <Text style={styles.orderId}>#{item._id?.slice(-8).toUpperCase() ?? '—'}</Text>
-      <StatusBadge status={item.status} />
-    </View>
-
-    <View style={styles.cardBody}>
-      <Text style={styles.infoText}>📅 {formatDate(item.createdAt)}</Text>
-      <Text style={styles.infoText}>📦 {item.items?.length ?? 0} ürün</Text>
-      {item.address ? (
-        <Text style={styles.infoText} numberOfLines={1}>
-          📍 {typeof item.address === 'string' ? item.address : item.address?.street ?? '—'}
-        </Text>
-      ) : null}
-      {item.giftNote ? (
-        <Text style={styles.infoText} numberOfLines={1}>🎁 {item.giftNote}</Text>
-      ) : null}
-    </View>
-
-    <Text style={styles.total}>
-      {Number(item.totalPrice ?? item.total ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
-    </Text>
-
-    {isEditable(item.status) && (
-      <TouchableOpacity style={styles.editBtn} onPress={() => onEdit(item)} activeOpacity={0.8}>
-        <Text style={styles.editBtnText}>✏️  Adresi / Notu Güncelle</Text>
-      </TouchableOpacity>
-    )}
-  </View>
-);
-
-// ---------------------------------------------------------------------------
-// MyOrdersScreen
-// ---------------------------------------------------------------------------
+const STATUS_COLORS = {
+  preparing: '#F59E0B',
+  shipped: '#3B82F6',
+  delivered: '#10B981',
+  cancelled: '#9CA3AF',
+}
 
 export default function MyOrdersScreen() {
-  const [orders, setOrders]       = useState([]);
-  const [loading, setLoading]     = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(false)
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selected, setSelected]         = useState(null);
-  const [newAddress, setNewAddress]     = useState('');
-  const [newGiftNote, setNewGiftNote]   = useState('');
-  const [saving, setSaving]             = useState(false);
+  // Güncelleme modali
+  const [modalVisible, setModalVisible] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState(null)
+  const [recipient, setRecipient] = useState('')
+  const [address, setAddress] = useState('')
+  const [giftNote, setGiftNote] = useState('')
+  const [updating, setUpdating] = useState(false)
 
-  // ── Veri Çek ──────────────────────────────────────────────────────────────
+  // Özel pop-up state
+  const [popup, setPopup] = useState({ visible: false, title: '', message: '' })
+  const showPopup = (title, message) => setPopup({ visible: true, title, message })
+  const closePopup = () => setPopup((p) => ({ ...p, visible: false }))
 
-  const fetchOrders = useCallback(async (isRefresh = false) => {
-    isRefresh ? setRefreshing(true) : setLoading(true);
+  const fetchOrders = useCallback(async () => {
+    setLoading(true)
     try {
-      const data = await getOrders();
-      const list = Array.isArray(data) ? data : data?.orders ?? [];
-      setOrders([...list].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-    } catch {
-      Alert.alert('Hata', 'Siparişler yüklenirken bir sorun oluştu.');
+      const userStr = await AsyncStorage.getItem('user')
+      if (!userStr) {
+        showPopup('Hata', 'Oturum bilgisi bulunamadı. Lütfen tekrar giriş yapın.')
+        return
+      }
+      const user = JSON.parse(userStr)
+      const userId = user._id || user.id
+      const data = await getOrders(userId)
+      setOrders(data || [])
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Siparişler yüklenemedi'
+      showPopup('Hata', msg)
     } finally {
-      isRefresh ? setRefreshing(false) : setLoading(false);
+      setLoading(false)
     }
-  }, []);
+  }, [])
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
 
-  // ── Modal Aç/Kapat ────────────────────────────────────────────────────────
+  const openUpdateModal = (order) => {
+    setSelectedOrder(order)
+    setRecipient(order.recipient || '')
+    setAddress(order.address || '')
+    setGiftNote(order.giftNote || '')
+    setModalVisible(true)
+  }
 
-  const openModal = (order) => {
-    setSelected(order);
-    setNewAddress(typeof order.address === 'string' ? order.address : order.address?.street ?? '');
-    setNewGiftNote(order.giftNote ?? '');
-    setModalVisible(true);
-  };
-
-  const closeModal = () => {
-    setModalVisible(false);
-    setSelected(null);
-    setNewAddress('');
-    setNewGiftNote('');
-  };
-
-  // ── Güncelle ──────────────────────────────────────────────────────────────
-
-  const handleSave = async () => {
-    if (!newAddress.trim()) {
-      Alert.alert('Eksik Bilgi', 'Lütfen adres alanını doldurun.');
-      return;
+  const handleUpdate = async () => {
+    if (!recipient.trim() || !address.trim()) {
+      showPopup('Hata', 'Alıcı adı ve adres zorunludur')
+      return
     }
-    setSaving(true);
+    setUpdating(true)
     try {
-      await updateOrder(selected._id, { address: newAddress.trim(), giftNote: newGiftNote.trim() });
-      closeModal();
-      fetchOrders();
-    } catch {
-      // api.js hata gösteriyor
+      await updateOrder(selectedOrder._id, address.trim(), recipient.trim(), giftNote.trim())
+      setModalVisible(false)
+      showPopup('Başarılı', 'Sipariş güncellendi ✓')
+      fetchOrders()
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Güncelleme başarısız'
+      showPopup('Hata', msg)
     } finally {
-      setSaving(false);
+      setUpdating(false)
     }
-  };
+  }
 
-  // ── Boş Durum ─────────────────────────────────────────────────────────────
+  const isActive = (status) => status !== 'delivered' && status !== 'cancelled'
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyIcon}>📭</Text>
-      <Text style={styles.emptyTitle}>Henüz Sipariş Yok</Text>
-      <Text style={styles.emptyText}>Verdiğiniz siparişler burada görünecek.</Text>
-    </View>
-  );
+  const formatDate = (dateStr) => {
+    if (!dateStr) return ''
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })
+  }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const renderOrder = ({ item }) => {
+    const statusColor = STATUS_COLORS[item.status] || '#9CA3AF'
+    const statusLabel = STATUS_LABELS[item.status] || item.status
+
+    return (
+      <View style={styles.card}>
+        {/* Kart Başlığı */}
+        <View style={styles.cardHeader}>
+          <View>
+            <Text style={styles.orderId}>
+              #{String(item._id).slice(-8).toUpperCase()}
+            </Text>
+            <Text style={styles.orderDate}>{formatDate(item.createdAt)}</Text>
+          </View>
+          <View style={[styles.badge, { backgroundColor: statusColor + '22' }]}>
+            <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
+          </View>
+        </View>
+
+        {/* Ürünler — resimli */}
+        {item.items && item.items.length > 0 && (
+          <View style={styles.itemsContainer}>
+            {item.items.map((p, idx) => {
+              const imgUrl = p.product?.imageUrl ?? p.imageUrl ?? ''
+              const pName = p.name || p.product?.name || p.productId || 'Ürün'
+              return (
+                <View key={idx} style={styles.productRow}>
+                  {imgUrl ? (
+                    <Image
+                      source={{ uri: imgUrl }}
+                      style={styles.productThumb}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.productThumbPlaceholder}>
+                      <Text style={{ fontSize: 14 }}>🌸</Text>
+                    </View>
+                  )}
+                  <Text style={styles.productLine} numberOfLines={1}>
+                    {pName} × {p.quantity}
+                  </Text>
+                </View>
+              )
+            })}
+          </View>
+        )}
+
+        {/* Alıcı & Adres & Hediye Notu */}
+        {item.recipient ? (
+          <Text style={styles.infoLine}>👤 {item.recipient}</Text>
+        ) : null}
+        {item.address ? (
+          <Text style={styles.infoLine} numberOfLines={2}>📍 {item.address}</Text>
+        ) : null}
+        {item.giftNote ? (
+          <Text style={styles.infoLine} numberOfLines={2}>🎁 {item.giftNote}</Text>
+        ) : null}
+
+        {/* Toplam */}
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Toplam</Text>
+          <Text style={styles.totalAmount}>{item.total ?? item.totalPrice ?? '—'} ₺</Text>
+        </View>
+
+        {/* Güncelle Butonu */}
+        {isActive(item.status) && (
+          <TouchableOpacity style={styles.updateBtn} onPress={() => openUpdateModal(item)}>
+            <Text style={styles.updateBtnText}>✏️ Güncelle</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    )
+  }
 
   return (
-    <View style={styles.screen}>
+    <View style={styles.container}>
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.bordeaux} />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#7B1C3E" />
           <Text style={styles.loadingText}>Siparişler yükleniyor...</Text>
         </View>
       ) : (
         <FlatList
           data={orders}
-          keyExtractor={(item) => item._id?.toString() ?? Math.random().toString()}
-          renderItem={({ item }) => <OrderCard item={item} onEdit={openModal} />}
-          ListEmptyComponent={renderEmpty}
-          onRefresh={() => fetchOrders(true)}
-          refreshing={refreshing}
+          keyExtractor={(item) => String(item._id)}
+          renderItem={renderOrder}
           contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.listHeaderRow}>
+              <Text style={styles.pageTitle}>Siparişlerim ({orders.length})</Text>
+              <TouchableOpacity onPress={fetchOrders}>
+                <Text style={styles.refreshText}>🔄</Text>
+              </TouchableOpacity>
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>📦</Text>
+              <Text style={styles.emptyText}>Henüz sipariş yok</Text>
+            </View>
+          }
         />
       )}
 
-      {/* ══ GÜNCELLEME MODALİ ═══════════════════════════════════════════════ */}
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
+      {/* ── Güncelleme Modali ── */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
         <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalWrap}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={styles.modalCard}>
-            {/* Başlık */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Sipariş Güncelle</Text>
-              <TouchableOpacity onPress={closeModal} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.modalSubtitle}>#{selected?._id?.slice(-8).toUpperCase()}</Text>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Siparişi Güncelle</Text>
 
-            {/* Adres */}
-            <Text style={styles.label}>Yeni Adres *</Text>
+            <Text style={styles.modalLabel}>Alıcı Adı *</Text>
             <TextInput
-              style={[styles.input, styles.inputMultiline]}
-              placeholder="Teslimat adresinizi girin..."
-              placeholderTextColor={COLORS.placeholder}
-              value={newAddress}
-              onChangeText={setNewAddress}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
+              style={styles.modalInput}
+              value={recipient}
+              onChangeText={setRecipient}
+              placeholder="Ad Soyad"
             />
 
-            {/* Hediye Notu */}
-            <Text style={styles.label}>Hediye Notu</Text>
+            <Text style={styles.modalLabel}>Teslimat Adresi *</Text>
             <TextInput
-              style={[styles.input, styles.inputMultiline]}
-              placeholder="Sevdiğinize bir not... (isteğe bağlı)"
-              placeholderTextColor={COLORS.placeholder}
-              value={newGiftNote}
-              onChangeText={setNewGiftNote}
+              style={[styles.modalInput, styles.modalMultiline]}
+              value={address}
+              onChangeText={setAddress}
+              placeholder="Adres"
               multiline
               numberOfLines={3}
-              textAlignVertical="top"
             />
 
-            {/* Butonlar */}
+            <Text style={styles.modalLabel}>Hediye Notu</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalMultiline]}
+              value={giftNote}
+              onChangeText={setGiftNote}
+              placeholder="İsteğe bağlı hediye notu"
+              multiline
+              numberOfLines={2}
+            />
+
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={closeModal} activeOpacity={0.8}>
-                <Text style={styles.cancelBtnText}>Vazgeç</Text>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setModalVisible(false)}
+                disabled={updating}
+              >
+                <Text style={styles.modalCancelText}>İptal</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.saveBtn, saving && styles.btnDisabled]}
-                onPress={handleSave}
-                disabled={saving}
-                activeOpacity={0.8}
+                style={[styles.modalSaveBtn, updating && styles.modalSaveBtnDisabled]}
+                onPress={handleUpdate}
+                disabled={updating}
               >
-                {saving
-                  ? <ActivityIndicator color={COLORS.white} size="small" />
-                  : <Text style={styles.saveBtnText}>Kaydet</Text>
+                {updating
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.modalSaveText}>Kaydet</Text>
                 }
               </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* ── Özel Pop-up ── */}
+      <Modal
+        visible={popup.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={closePopup}
+      >
+        <View style={styles.popupOverlay}>
+          <View style={styles.popupBox}>
+            <Text style={styles.popupTitle}>{popup.title}</Text>
+            <Text style={styles.popupMessage}>{popup.message}</Text>
+            <TouchableOpacity style={styles.popupBtn} onPress={closePopup}>
+              <Text style={styles.popupBtnText}>Tamam</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
-  );
+  )
 }
 
-// ---------------------------------------------------------------------------
-// StyleSheet
-// ---------------------------------------------------------------------------
-
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: COLORS.cream },
-  listContent: { padding: 16, paddingBottom: 32, flexGrow: 1 },
+  container: { flex: 1, backgroundColor: '#F5F0E8' },
 
-  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  loadingText: { fontSize: 14, color: COLORS.bordeaux, opacity: 0.7 },
+  listContent: { padding: 16, paddingBottom: 40 },
+  listHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  pageTitle: { fontSize: 18, fontWeight: 'bold', color: '#7B1C3E' },
+  refreshText: { fontSize: 22 },
 
-  // Kart
   card: {
-    backgroundColor: COLORS.white, borderRadius: 14,
-    padding: 16, marginBottom: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.07,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  orderId: { fontSize: 14, fontWeight: '700', color: COLORS.bordeaux, flex: 1, marginRight: 8 },
-  cardBody: { gap: 4, marginBottom: 10 },
-  infoText: { fontSize: 13, color: COLORS.text, opacity: 0.75 },
-  total: { fontSize: 17, fontWeight: '800', color: COLORS.bordeaux, textAlign: 'right', marginBottom: 10 },
-
-  // Rozet
-  badge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
-
-  // Düzenle
-  editBtn: { borderWidth: 1.5, borderColor: COLORS.bordeaux, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
-  editBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.bordeaux },
-
-  // Boş
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 52, marginBottom: 14 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.bordeaux, marginBottom: 6 },
-  emptyText: { fontSize: 14, color: COLORS.text, opacity: 0.5, textAlign: 'center' },
-
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: COLORS.overlay, justifyContent: 'flex-end' },
-  modalCard: {
-    backgroundColor: COLORS.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
   },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: COLORS.bordeaux },
-  modalClose: { fontSize: 18, color: COLORS.text, opacity: 0.5 },
-  modalSubtitle: { fontSize: 12, color: COLORS.text, opacity: 0.45, marginBottom: 16, letterSpacing: 0.5 },
+  orderId: { fontSize: 14, fontWeight: 'bold', color: '#1A1A1A' },
+  orderDate: { fontSize: 12, color: '#888', marginTop: 2 },
+  badge: {
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  badgeText: { fontSize: 12, fontWeight: '700' },
 
-  label: { fontSize: 12, fontWeight: '600', color: COLORS.text, marginBottom: 6, marginTop: 10, letterSpacing: 0.3 },
-  input: {
-    backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.border,
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 14, color: COLORS.text, minHeight: 44,
+  itemsContainer: {
+    backgroundColor: '#F9F7F3',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
   },
-  inputMultiline: { minHeight: 80, paddingTop: 10 },
+  productRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  productThumb: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  productThumbPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: '#EDE8DE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  productLine: { flex: 1, fontSize: 13, color: '#444' },
 
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 20 },
-  cancelBtn: {
-    flex: 1, height: 50, borderRadius: 8, borderWidth: 1.5, borderColor: COLORS.border,
-    alignItems: 'center', justifyContent: 'center',
+  infoLine: { fontSize: 13, color: '#555', marginBottom: 4 },
+
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#EDE8DE',
+    paddingTop: 10,
+    marginTop: 6,
   },
-  cancelBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.text, opacity: 0.7 },
-  saveBtn: {
-    flex: 2, height: 50, borderRadius: 8, backgroundColor: COLORS.bordeaux,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.bordeaux, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28, shadowRadius: 8, elevation: 4,
+  totalLabel: { fontSize: 14, color: '#666' },
+  totalAmount: { fontSize: 16, fontWeight: 'bold', color: '#7B1C3E' },
+
+  updateBtn: {
+    marginTop: 10,
+    backgroundColor: '#7B1C3E',
+    borderRadius: 50,
+    padding: 12,
+    alignItems: 'center',
   },
-  btnDisabled: { opacity: 0.6 },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
-});
+  updateBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, color: '#7B1C3E', fontSize: 14 },
+
+  empty: { alignItems: 'center', paddingTop: 80 },
+  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyText: { fontSize: 16, color: '#999' },
+
+  // Güncelleme Modal
+  modalWrap: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalBox: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#7B1C3E',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalLabel: { fontSize: 13, fontWeight: '600', color: '#1A1A1A', marginBottom: 4 },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#EDE8DE',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    marginBottom: 12,
+    backgroundColor: '#FAFAFA',
+  },
+  modalMultiline: { minHeight: 70, textAlignVertical: 'top' },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  modalCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#EDE8DE',
+    borderRadius: 50,
+    padding: 14,
+    alignItems: 'center',
+  },
+  modalCancelText: { fontSize: 15, color: '#666' },
+  modalSaveBtn: {
+    flex: 1,
+    backgroundColor: '#7B1C3E',
+    borderRadius: 50,
+    padding: 14,
+    alignItems: 'center',
+  },
+  modalSaveBtnDisabled: { opacity: 0.6 },
+  modalSaveText: { fontSize: 15, color: '#fff', fontWeight: 'bold' },
+
+  // Özel Pop-up
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  popupBox: {
+    backgroundColor: '#F5F0E8',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
+  },
+  popupTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#7B1C3E',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  popupMessage: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  popupBtn: {
+    backgroundColor: '#7B1C3E',
+    borderRadius: 50,
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+  },
+  popupBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+})
