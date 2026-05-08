@@ -40,6 +40,9 @@ exports.addNote = async (req, res) => {
 
     // 2) Siparişin notes dizisine GiftNote._id referansı ekle
     order.notes.push(newNote._id)
+    
+    // 3) order.giftNote stringini de senkronize et
+    order.giftNote = noteText
     await order.save()
 
     return res.status(201).json({
@@ -90,6 +93,11 @@ exports.deleteNote = async (req, res) => {
 
     // 2) Order.notes dizisinden referansı çıkar (hayalet referans önlenir)
     order.notes = order.notes.filter((n) => n.toString() !== noteId)
+    
+    // 3) Eğer order'ın başka notu kalmadıysa giftNote stringini de temizle
+    if (order.notes.length === 0) {
+      order.giftNote = ''
+    }
     await order.save()
 
     return res.status(200).json({ message: 'Not silindi.', order })
