@@ -267,17 +267,25 @@ router.post('/:orderId/notes', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'Bu işlem için yetkiniz yok.' })
     }
 
-    // 1) GiftNote koleksiyonunda yeni belge oluştur
-    const newNote = new GiftNote({ order: orderId, note: noteText })
-    await newNote.save()
-
-    // 2) Siparişin notes dizisine GiftNote._id referansı ekle
-    order.notes.push(newNote._id)
-    await order.save()
+    // 1) Upsert Mantığı (Varsa güncelle, yoksa oluştur)
+    const existingNote = await GiftNote.findOne({ order: orderId })
+    
+    let savedNote
+    if (existingNote) {
+      existingNote.note = noteText
+      savedNote = await existingNote.save()
+    } else {
+      savedNote = new GiftNote({ order: orderId, note: noteText })
+      await savedNote.save()
+      
+      // Siparişin notes dizisine referans ekle
+      order.notes.push(savedNote._id)
+      await order.save()
+    }
 
     return res.status(201).json({
-      message: 'Not eklendi.',
-      note:    newNote,
+      message: 'Not güncellendi/eklendi.',
+      note: savedNote,
       order,
     })
   } catch (err) {

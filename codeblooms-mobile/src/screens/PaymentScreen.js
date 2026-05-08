@@ -59,17 +59,8 @@ export default function PaymentScreen({ route, navigation }) {
 
     setLoading(true)
     try {
-      // 1) Siparişi oluştur
+      // 1) Siparişi oluştur (Hediye notu da bu çağrıda otomatik olarak tekil oluşturulur)
       const order = await createOrder(address, recipient, cartItems, giftNote)
-
-      // 2) Hediye notu varsa ekle
-      if (giftNote?.trim() && order?._id) {
-        try {
-          await addGiftNote(order._id, giftNote.trim())
-        } catch {
-          // Hediye notu eklenemedi — sipariş yine de tamamlandı
-        }
-      }
 
       showPopup(
         '🎉 Sipariş Tamamlandı!',
