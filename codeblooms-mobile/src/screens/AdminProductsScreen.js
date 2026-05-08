@@ -1,486 +1,500 @@
-/**
- * CodeBlooms Mobile — AdminProductsScreen
- *
- * Yönetici ürün yönetimi ekranı.
- * API: src/api/api.js → getProducts, addProduct, deleteProduct
- */
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react'
 import {
-  View,
-  Text,
-  TextInput,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
-import { getProducts, addProduct, deleteProduct } from '../api/api';
+  View, Text, TextInput, TouchableOpacity, FlatList,
+  StyleSheet, ActivityIndicator, ScrollView,
+  Modal, KeyboardAvoidingView, Platform
+} from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { getProducts, addProduct, deleteProduct } from '../api/api'
 
-// ---------------------------------------------------------------------------
-// Sabitler
-// ---------------------------------------------------------------------------
+const CATEGORIES = ['Güller', 'Orkideler', 'Papatyalar', 'Lilyumlar', 'Çikolatalar']
 
-const COLORS = {
-  cream:      '#F5F0E8',
-  beige:      '#EDE8DE',
-  bordeaux:   '#7B1C3E',
-  text:       '#1A1A1A',
-  white:      '#FFFFFF',
-  placeholder:'#9E9E9E',
-  border:     '#C8C0B0',
-  danger:     '#C0392B',
-  dangerBg:   '#FDECEA',
-  success:    '#27AE60',
-};
+export default function AdminProductsScreen({ navigation }) {
+  // Form state
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [price, setPrice] = useState('')
+  const [stock, setStock] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
+  const [category, setCategory] = useState(CATEGORIES[0])
+  const [showCatPicker, setShowCatPicker] = useState(false)
 
-const FALLBACK_IMAGE =
-  'https://via.placeholder.com/80x80/EDE8DE/7B1C3E?text=%F0%9F%8C%B8';
+  // Liste state
+  const [products, setProducts] = useState([])
+  const [loadingList, setLoadingList] = useState(false)
+  const [loadingAdd, setLoadingAdd] = useState(false)
 
-const INITIAL_FORM = {
-  name:        '',
-  description: '',
-  price:       '',
-  stock:       '',
-  imageUrl:    '',
-};
-
-// ---------------------------------------------------------------------------
-// Küçük bileşen — Ürün Listesi Satırı
-// ---------------------------------------------------------------------------
-
-const ProductRow = ({ item, onDelete }) => (
-  <View style={styles.row}>
-    <Image
-      source={{ uri: item.imageUrl || item.image || FALLBACK_IMAGE }}
-      style={styles.rowImage}
-      resizeMode="cover"
-    />
-
-    <View style={styles.rowInfo}>
-      <Text style={styles.rowName} numberOfLines={1}>
-        {item.name}
-      </Text>
-      <Text style={styles.rowPrice}>
-        {Number(item.price).toLocaleString('tr-TR', {
-          minimumFractionDigits: 2,
-        })}{' '}
-        ₺
-      </Text>
-      <Text style={styles.rowStock}>Stok: {item.stock ?? '—'}</Text>
-    </View>
-
-    <TouchableOpacity
-      style={styles.deleteBtn}
-      onPress={() => onDelete(item)}
-      activeOpacity={0.75}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-    >
-      <Text style={styles.deleteBtnText}>🗑</Text>
-    </TouchableOpacity>
-  </View>
-);
-
-// ---------------------------------------------------------------------------
-// AdminProductsScreen
-// ---------------------------------------------------------------------------
-
-export default function AdminProductsScreen() {
-  const [products, setProducts]     = useState([]);
-  const [form, setForm]             = useState(INITIAL_FORM);
-  const [loadingList, setLoadingList] = useState(false);
-  const [loadingAdd, setLoadingAdd]   = useState(false);
-  const [deletingId, setDeletingId]   = useState(null);
-
-  // ── Ürünleri Çek ──────────────────────────────────────────────────────────
-
-  const fetchProducts = useCallback(async () => {
-    setLoadingList(true);
-    try {
-      const data = await getProducts();
-      const list = Array.isArray(data) ? data : data?.products ?? [];
-      setProducts(list);
-    } catch (err) {
-      Alert.alert('Hata', 'Ürün listesi alınamadı.');
-    } finally {
-      setLoadingList(false);
-    }
-  }, []);
+  // Özel pop-up state
+  const [popup, setPopup] = useState({ visible: false, title: '', message: '', actions: null })
+  const showPopup = (title, message, actions = null) =>
+    setPopup({ visible: true, title, message, actions })
+  const closePopup = () => setPopup((p) => ({ ...p, visible: false }))
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    // Auth Guard: admin değilse sayfaya erişim engelle
+    const checkAdmin = async () => {
+      try {
+        const userStr = await AsyncStorage.getItem('user')
+        if (!userStr) {
+          showPopup(
+            'Yetkisiz Erişim',
+            'Bu sayfaya erişmek için giriş yapmanız gerekiyor.',
+            [{ text: 'Geri Dön', onPress: () => { closePopup(); navigation.goBack() } }]
+          )
+          return
+        }
+        const user = JSON.parse(userStr)
+        const admin = user?.isAdmin === true || user?.role === 'admin'
+        if (!admin) {
+          showPopup(
+            'Yetkisiz Erişim',
+            'Bu sayfaya erişmek için admin yetkisine sahip olmalısınız.',
+            [{ text: 'Geri Dön', onPress: () => { closePopup(); navigation.goBack() } }]
+          )
+          return
+        }
+      } catch {
+        navigation.goBack()
+      }
+    }
+    checkAdmin()
+    fetchProducts()
+  }, [])
 
-  // ── Form Değişimi ─────────────────────────────────────────────────────────
-
-  const handleChange = (field, value) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
-
-  // ── Ürün Ekle ─────────────────────────────────────────────────────────────
+  const fetchProducts = async () => {
+    setLoadingList(true)
+    try {
+      const data = await getProducts()
+      setProducts(data || [])
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Ürünler yüklenemedi'
+      showPopup('Hata', msg)
+    } finally {
+      setLoadingList(false)
+    }
+  }
 
   const handleAdd = async () => {
-    const { name, description, price, stock, imageUrl } = form;
-
-    if (!name.trim() || !price.trim()) {
-      Alert.alert('Eksik Bilgi', 'Ürün adı ve fiyat alanları zorunludur.');
-      return;
+    if (!name.trim() || !price || !stock) {
+      showPopup('Hata', 'Ad, fiyat ve stok zorunludur')
+      return
     }
-    if (isNaN(Number(price)) || Number(price) <= 0) {
-      Alert.alert('Geçersiz Fiyat', 'Lütfen geçerli bir fiyat girin.');
-      return;
+    const priceNum = parseFloat(price)
+    const stockNum = parseInt(stock, 10)
+    if (isNaN(priceNum) || priceNum <= 0) {
+      showPopup('Hata', 'Geçerli bir fiyat girin')
+      return
     }
-
-    setLoadingAdd(true);
+    if (isNaN(stockNum) || stockNum < 0) {
+      showPopup('Hata', 'Geçerli bir stok miktarı girin')
+      return
+    }
+    setLoadingAdd(true)
     try {
       await addProduct({
-        name:        name.trim(),
+        name: name.trim(),
         description: description.trim(),
-        price:       Number(price),
-        stock:       Number(stock) || 0,
-        imageUrl:    imageUrl.trim(),
-      });
-      setForm(INITIAL_FORM);
-      fetchProducts(); // Listeyi yenile
-    } catch (_err) {
-      // Hata api.js'te gösterildi
+        price: priceNum,
+        stock: stockNum,
+        imageUrl: imageUrl.trim(),
+        category,
+      })
+      setName('')
+      setDescription('')
+      setPrice('')
+      setStock('')
+      setImageUrl('')
+      setCategory(CATEGORIES[0])
+      fetchProducts()
+      showPopup('Başarılı', 'Ürün başarıyla eklendi! ✓')
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Ürün eklenemedi'
+      showPopup('Hata', msg)
     } finally {
-      setLoadingAdd(false);
+      setLoadingAdd(false)
     }
-  };
-
-  // ── Ürün Sil ──────────────────────────────────────────────────────────────
+  }
 
   const handleDelete = (item) => {
-    Alert.alert(
+    showPopup(
       'Ürünü Sil',
-      `"${item.name}" ürününü silmek istediğinizden emin misiniz?`,
+      `"${item.name}" silinsin mi?`,
       [
-        { text: 'Vazgeç', style: 'cancel' },
         {
-          text: 'Evet, Sil',
-          style: 'destructive',
+          text: 'Sil',
           onPress: async () => {
-            setDeletingId(item._id);
+            closePopup()
             try {
-              await deleteProduct(item._id);
-              setProducts((prev) => prev.filter((p) => p._id !== item._id));
-            } catch (_err) {
-              // Hata api.js'te gösterildi
-            } finally {
-              setDeletingId(null);
+              await deleteProduct(item._id)
+              fetchProducts()
+              showPopup('Başarılı', 'Ürün silindi.')
+            } catch (err) {
+              const msg = err.response?.data?.message || err.message || 'Ürün silinemedi'
+              showPopup('Hata', msg)
             }
           },
         },
+        { text: 'İptal', style: 'cancel', onPress: closePopup },
       ]
-    );
-  };
+    )
+  }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const renderProduct = ({ item }) => (
+    <View style={styles.productRow}>
+      <View style={styles.productInfo}>
+        <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.productMeta}>{item.category} · {item.price} ₺ · Stok: {item.stock}</Text>
+      </View>
+      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
+        <Text style={styles.deleteBtnText}>🗑</Text>
+      </TouchableOpacity>
+    </View>
+  )
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardWrapper}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <FlatList
-        data={products}
-        keyExtractor={(item) => item._id?.toString() ?? Math.random().toString()}
-        renderItem={({ item }) =>
-          deletingId === item._id ? (
-            <View style={[styles.row, styles.rowDeleting]}>
-              <ActivityIndicator color={COLORS.bordeaux} />
-              <Text style={styles.deletingText}>Siliniyor...</Text>
+      <View style={styles.container}>
+        {/* Form */}
+        <ScrollView
+          style={styles.formScroll}
+          contentContainerStyle={styles.formContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.sectionTitle}>➕ Yeni Ürün Ekle</Text>
+
+          <Text style={styles.label}>Ürün Adı *</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            placeholder="Ürün adı"
+          />
+
+          <Text style={styles.label}>Açıklama</Text>
+          <TextInput
+            style={[styles.input, styles.multiline]}
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Ürün açıklaması"
+            multiline
+            numberOfLines={3}
+          />
+
+          <View style={styles.row2}>
+            <View style={styles.halfField}>
+              <Text style={styles.label}>Fiyat (₺) *</Text>
+              <TextInput
+                style={styles.input}
+                value={price}
+                onChangeText={setPrice}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={styles.halfField}>
+              <Text style={styles.label}>Stok *</Text>
+              <TextInput
+                style={styles.input}
+                value={stock}
+                onChangeText={setStock}
+                placeholder="0"
+                keyboardType="number-pad"
+              />
+            </View>
+          </View>
+
+          <Text style={styles.label}>Görsel URL</Text>
+          <TextInput
+            style={styles.input}
+            value={imageUrl}
+            onChangeText={setImageUrl}
+            placeholder="https://..."
+            autoCapitalize="none"
+          />
+
+          <Text style={styles.label}>Kategori</Text>
+          <TouchableOpacity style={styles.catSelect} onPress={() => setShowCatPicker(true)}>
+            <Text style={styles.catSelectText}>{category}</Text>
+            <Text style={styles.catSelectArrow}>▼</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.addBtn, loadingAdd && styles.addBtnDisabled]}
+            onPress={handleAdd}
+            disabled={loadingAdd}
+          >
+            {loadingAdd
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.addBtnText}>Ürün Ekle</Text>
+            }
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Divider */}
+        <View style={styles.divider} />
+
+        {/* Ürün Listesi */}
+        <View style={styles.listSection}>
+          <View style={styles.listHeader}>
+            <Text style={styles.sectionTitle}>📦 Ürün Listesi ({products.length})</Text>
+            <TouchableOpacity onPress={fetchProducts} disabled={loadingList}>
+              <Text style={styles.refreshText}>{loadingList ? '...' : '🔄'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loadingList ? (
+            <View style={styles.center}>
+              <ActivityIndicator size="small" color="#7B1C3E" />
             </View>
           ) : (
-            <ProductRow item={item} onDelete={handleDelete} />
-          )
-        }
-        ListHeaderComponent={
-          <>
-            {/* ── FORM ALANI ────────────────────────────────────────── */}
-            <View style={styles.formCard}>
-              <Text style={styles.sectionTitle}>➕ Yeni Ürün Ekle</Text>
+            <FlatList
+              data={products}
+              keyExtractor={(item) => String(item._id)}
+              renderItem={renderProduct}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>Henüz ürün yok</Text>
+              }
+              contentContainerStyle={{ paddingBottom: 20 }}
+            />
+          )}
+        </View>
 
-              <Text style={styles.label}>Ürün Adı *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Örn: Kırmızı Güller Buketi"
-                placeholderTextColor={COLORS.placeholder}
-                value={form.name}
-                onChangeText={(v) => handleChange('name', v)}
-                returnKeyType="next"
-              />
+        {/* Kategori Seçici Modal */}
+        <Modal
+          visible={showCatPicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowCatPicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowCatPicker(false)}
+          >
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Kategori Seç</Text>
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[styles.modalOption, category === cat && styles.modalOptionActive]}
+                  onPress={() => {
+                    setCategory(cat)
+                    setShowCatPicker(false)
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, category === cat && styles.modalOptionTextActive]}>
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
-              <Text style={styles.label}>Açıklama</Text>
-              <TextInput
-                style={[styles.input, styles.inputMultiline]}
-                placeholder="Ürünü kısaca tanımlayın..."
-                placeholderTextColor={COLORS.placeholder}
-                value={form.description}
-                onChangeText={(v) => handleChange('description', v)}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-
-              <View style={styles.rowForm}>
-                <View style={styles.halfField}>
-                  <Text style={styles.label}>Fiyat (₺) *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="0.00"
-                    placeholderTextColor={COLORS.placeholder}
-                    value={form.price}
-                    onChangeText={(v) => handleChange('price', v)}
-                    keyboardType="numeric"
-                    returnKeyType="next"
-                  />
-                </View>
-
-                <View style={styles.halfField}>
-                  <Text style={styles.label}>Stok</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="0"
-                    placeholderTextColor={COLORS.placeholder}
-                    value={form.stock}
-                    onChangeText={(v) => handleChange('stock', v)}
-                    keyboardType="numeric"
-                    returnKeyType="next"
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.label}>Görsel URL</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="https://..."
-                placeholderTextColor={COLORS.placeholder}
-                value={form.imageUrl}
-                onChangeText={(v) => handleChange('imageUrl', v)}
-                keyboardType="url"
-                autoCapitalize="none"
-                returnKeyType="done"
-                onSubmitEditing={handleAdd}
-              />
-
-              {/* Ürün Ekle Butonu */}
-              <TouchableOpacity
-                style={[styles.addBtn, loadingAdd && styles.btnDisabled]}
-                onPress={handleAdd}
-                disabled={loadingAdd}
-                activeOpacity={0.8}
-              >
-                {loadingAdd ? (
-                  <ActivityIndicator color={COLORS.white} size="small" />
+        {/* Özel Pop-up */}
+        <Modal
+          visible={popup.visible}
+          transparent
+          animationType="fade"
+          onRequestClose={closePopup}
+        >
+          <View style={styles.popupOverlay}>
+            <View style={styles.popupBox}>
+              {popup.title ? <Text style={styles.popupTitle}>{popup.title}</Text> : null}
+              {popup.message ? <Text style={styles.popupMessage}>{popup.message}</Text> : null}
+              <View style={styles.popupActions}>
+                {popup.actions ? (
+                  popup.actions.map((a, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={[styles.popupBtn, a.style === 'cancel' && styles.popupBtnCancel]}
+                      onPress={a.onPress}
+                    >
+                      <Text style={[styles.popupBtnText, a.style === 'cancel' && styles.popupBtnCancelText]}>
+                        {a.text}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
                 ) : (
-                  <Text style={styles.addBtnText}>Ürün Ekle</Text>
+                  <TouchableOpacity style={styles.popupBtn} onPress={closePopup}>
+                    <Text style={styles.popupBtnText}>Tamam</Text>
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
-            </View>
-
-            {/* ── ÜRÜN LİSTESİ BAŞLIĞI ──────────────────────────────── */}
-            <View style={styles.listHeader}>
-              <Text style={styles.sectionTitle}>📦 Mevcut Ürünler</Text>
-              {loadingList && (
-                <ActivityIndicator size="small" color={COLORS.bordeaux} />
-              )}
-            </View>
-
-            {!loadingList && products.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>🌸</Text>
-                <Text style={styles.emptyText}>Henüz ürün eklenmemiş.</Text>
               </View>
-            )}
-          </>
-        }
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+            </View>
+          </View>
+        </Modal>
+      </View>
     </KeyboardAvoidingView>
-  );
+  )
 }
 
-// ---------------------------------------------------------------------------
-// StyleSheet
-// ---------------------------------------------------------------------------
-
 const styles = StyleSheet.create({
-  keyboardWrapper: {
-    flex: 1,
-    backgroundColor: COLORS.cream,
-  },
-  listContent: {
-    paddingBottom: 32,
-  },
+  container: { flex: 1, backgroundColor: '#F5F0E8' },
 
-  // ── Form Kartı ────────────────────────────────────────────────────────────
-  formCard: {
-    margin: 16,
-    backgroundColor: COLORS.beige,
-    borderRadius: 16,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.bordeaux,
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: 10,
-    marginBottom: 5,
-    letterSpacing: 0.3,
-  },
+  formScroll: { flexShrink: 0, maxHeight: '55%' },
+  formContent: { padding: 16 },
+
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#7B1C3E', marginBottom: 12 },
+
+  label: { fontSize: 13, fontWeight: '600', color: '#1A1A1A', marginBottom: 4 },
   input: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#EDE8DE',
+    borderRadius: 10,
+    padding: 12,
     fontSize: 14,
-    color: COLORS.text,
-    minHeight: 44,
+    marginBottom: 10,
+    backgroundColor: '#fff',
   },
-  inputMultiline: {
-    minHeight: 80,
-    paddingTop: 10,
-  },
+  multiline: { minHeight: 70, textAlignVertical: 'top' },
 
-  // Yan yana input çifti
-  rowForm: {
+  row2: { flexDirection: 'row', gap: 10 },
+  halfField: { flex: 1 },
+
+  catSelect: {
+    borderWidth: 1,
+    borderColor: '#EDE8DE',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: '#fff',
     flexDirection: 'row',
-    gap: 10,
-  },
-  halfField: {
-    flex: 1,
-  },
-
-  // ── Ekle Butonu ───────────────────────────────────────────────────────────
-  addBtn: {
-    backgroundColor: COLORS.bordeaux,
-    borderRadius: 8,
-    height: 50,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 18,
-    shadowColor: COLORS.bordeaux,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  addBtnText: {
-    color: COLORS.white,
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
+  catSelectText: { fontSize: 14, color: '#1A1A1A' },
+  catSelectArrow: { fontSize: 12, color: '#7B1C3E' },
 
-  // ── Liste Başlığı ─────────────────────────────────────────────────────────
+  addBtn: {
+    backgroundColor: '#7B1C3E',
+    padding: 14,
+    borderRadius: 50,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  addBtnDisabled: { opacity: 0.6 },
+  addBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+
+  divider: { height: 1, backgroundColor: '#EDE8DE', marginVertical: 4 },
+
+  listSection: { flex: 1, paddingHorizontal: 16 },
   listHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 6,
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 8,
   },
+  refreshText: { fontSize: 18 },
 
-  // ── Ürün Satırı ───────────────────────────────────────────────────────────
-  row: {
+  productRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
-    marginHorizontal: 16,
-    marginVertical: 5,
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 12,
+    marginBottom: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 2,
   },
-  rowDeleting: {
-    opacity: 0.5,
-    gap: 12,
-  },
-  deletingText: {
-    fontSize: 13,
-    color: COLORS.bordeaux,
-    opacity: 0.7,
-  },
-  rowImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: COLORS.beige,
-    marginRight: 12,
-  },
-  rowInfo: {
-    flex: 1,
-  },
-  rowName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 3,
-  },
-  rowPrice: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.bordeaux,
-    marginBottom: 2,
-  },
-  rowStock: {
-    fontSize: 12,
-    color: COLORS.text,
-    opacity: 0.5,
-  },
+  productInfo: { flex: 1 },
+  productName: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
+  productMeta: { fontSize: 12, color: '#666', marginTop: 2 },
   deleteBtn: {
-    backgroundColor: COLORS.dangerBg,
+    padding: 8,
     borderRadius: 8,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
+    backgroundColor: '#FFF0F0',
   },
-  deleteBtnText: {
-    fontSize: 18,
-  },
+  deleteBtnText: { fontSize: 18 },
 
-  // ── Boş Durum ─────────────────────────────────────────────────────────────
-  emptyContainer: {
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 20 },
+  emptyText: { textAlign: 'center', color: '#999', paddingVertical: 20, fontSize: 14 },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 32,
   },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 8,
+  modalBox: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: 280,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
-  emptyText: {
-    fontSize: 14,
-    color: COLORS.text,
-    opacity: 0.5,
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#7B1C3E',
+    marginBottom: 14,
+    textAlign: 'center',
   },
-});
+  modalOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginBottom: 4,
+  },
+  modalOptionActive: { backgroundColor: '#7B1C3E' },
+  modalOptionText: { fontSize: 15, color: '#1A1A1A', textAlign: 'center' },
+  modalOptionTextActive: { color: '#fff', fontWeight: 'bold' },
+
+  // Özel Pop-up
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  popupBox: {
+    backgroundColor: '#F5F0E8',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
+  },
+  popupTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#7B1C3E',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  popupMessage: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  popupActions: { flexDirection: 'row', gap: 10 },
+  popupBtn: {
+    flex: 1,
+    backgroundColor: '#7B1C3E',
+    borderRadius: 50,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  popupBtnCancel: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#EDE8DE',
+  },
+  popupBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  popupBtnCancelText: { color: '#7B1C3E' },
+})
