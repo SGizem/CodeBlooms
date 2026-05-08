@@ -179,27 +179,27 @@ const updateOrder = async (req, res) => {
       order.status = status
     }
 
+    // ── HEDİYE NOTU GÜNCELLEMESİ (Tüm Koleksiyonlarla Senkronize) ──
     if (giftNote !== undefined) {
-      order.giftNote = giftNote
+      order.giftNote = giftNote.trim() // Eski string alanı güncelle
       
-      // Senkronizasyon: GiftNote koleksiyonunu da güncelle
-      if (giftNote.trim() !== '') {
-        if (order.notes && order.notes.length > 0) {
-          // İlk notu bul ve güncelle
-          const firstNoteId = order.notes[0]
-          await GiftNote.findByIdAndUpdate(firstNoteId, { note: giftNote.trim() })
+      if (giftNote.trim()) {
+        // Not doluysa: Varsa güncelle, yoksa yeni oluştur
+        const existingNote = await GiftNote.findOne({ order: orderId })
+        if (existingNote) {
+          existingNote.note = giftNote.trim()
+          await existingNote.save()
         } else {
-          // Yoksa yeni oluştur
-          const newNote = new GiftNote({ order: order._id, note: giftNote.trim() })
+          const newNote = new GiftNote({ order: orderId, note: giftNote.trim() })
           await newNote.save()
-          order.notes.push(newNote._id)
+          if (!order.notes.includes(newNote._id)) {
+            order.notes.push(newNote._id)
+          }
         }
       } else {
-        // Boş gönderildiyse mevcut notları sil
-        if (order.notes && order.notes.length > 0) {
-          await GiftNote.deleteMany({ _id: { $in: order.notes } })
-          order.notes = []
-        }
+        // Not boşsa: Bu siparişe ait tüm GiftNote belgelerini sil ve diziyi temizle
+        await GiftNote.deleteMany({ order: orderId })
+        order.notes = []
       }
     }
 
@@ -276,9 +276,6 @@ const addNote = async (req, res) => {
 
     // 2) Siparişin notes dizisine GiftNote._id referansı ekle
     order.notes.push(newNote._id)
-    
-    // 3) order.giftNote stringini de senkronize et
-    order.giftNote = noteText
     await order.save()
 
     return res.status(201).json({
@@ -332,11 +329,6 @@ const deleteNote = async (req, res) => {
 
     // 2) Order.notes dizisinden referansı çıkar
     order.notes = order.notes.filter((n) => n.toString() !== noteId)
-    
-    // 3) Eğer order'ın başka notu kalmadıysa giftNote stringini de temizle
-    if (order.notes.length === 0) {
-      order.giftNote = ''
-    }
     await order.save()
 
     return res.status(200).json({ message: 'Not silindi.', order })
