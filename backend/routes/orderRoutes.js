@@ -4,6 +4,7 @@ const authMiddleware = require('../middleware/authMiddleware')
 const Cart           = require('../models/Cart')
 const Order          = require('../models/Order')
 const Product        = require('../models/Product')
+const GiftNote       = require('../models/GiftNote')
 
 const router = express.Router()
 
@@ -68,6 +69,7 @@ router.post('/', authMiddleware, async (req, res) => {
       total += (product.price || 0) * it.quantity
     }
 
+    // 1) Siparişi oluştur
     const order = await Order.create({
       user:     req.user.id,
       items:    orderItems,
@@ -78,10 +80,23 @@ router.post('/', authMiddleware, async (req, res) => {
       status:   'preparing',
     })
 
-    // Sepeti temizle
+    // 2) Checkout'tan hediye notu geldiyse → GiftNote koleksiyonuna kaydet
+    //    ve siparişin notes dizisine referans olarak ekle
+    if (giftNote && giftNote.trim()) {
+      const newNote = new GiftNote({ order: order._id, note: giftNote.trim() })
+      await newNote.save()
+      order.notes.push(newNote._id)
+      await order.save()
+    }
+
+    // 3) Sepeti temizle
     await Cart.findOneAndUpdate({ user: req.user.id }, { items: [] })
 
-    return res.status(201).json({ order, message: 'Siparişiniz oluşturuldu.' })
+    // 4) Populate ederek dön
+    const populated = await Order.findById(order._id)
+      .populate('items.product')
+      .populate('notes')
+    return res.status(201).json({ order: populated, message: 'Siparişiniz oluşturuldu.' })
   } catch (err) {
     console.error('Sipariş oluşturma hatası:', err)
     return res.status(500).json({ message: 'Sipariş oluşturulurken hata oluştu.' })
@@ -102,7 +117,9 @@ router.get('/:userId', authMiddleware, async (req, res) => {
 
     const orders = await Order.find({ user: userId })
       .populate('items.product')
+      .populate('notes')   // GiftNote belgelerini tam olarak getirir
       .sort({ createdAt: -1 })
+      // NOT: .lean() KULLANILMAZ — virtual 'giftNotes' alanının çalışması için
 
     return res.status(200).json({ orders })
   } catch (err) {
@@ -191,18 +208,23 @@ router.put('/:orderId', authMiddleware, async (req, res) => {
 
 // ─────────────────────────────────────────────
 // POST /api/orders/:orderId/notes — Hediye notu ekle
-// Body: { message }
+// Body: { note } veya { message }
+//
+// İki tabloya aynı anda yazar:
+//   1) GiftNote koleksiyonuna yeni belge oluşturur
+//   2) Order.notes dizisine GiftNote._id referansını ekler
 // ─────────────────────────────────────────────
 router.post('/:orderId/notes', authMiddleware, async (req, res) => {
   try {
     const { orderId } = req.params
-    const { message } = req.body || {}
+    const { note, message } = req.body || {}
+    const noteText = (note || message || '').trim()
 
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({ message: 'Geçersiz sipariş kimliği.' })
     }
 
-    if (!message || typeof message !== 'string' || !message.trim()) {
+    if (!noteText) {
       return res.status(400).json({ message: 'Not mesajı boş olamaz.' })
     }
 
@@ -215,14 +237,17 @@ router.post('/:orderId/notes', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'Bu işlem için yetkiniz yok.' })
     }
 
-    order.notes.push({ message: message.trim() })
-    await order.save()
+    // 1) GiftNote koleksiyonunda yeni belge oluştur
+    const newNote = new GiftNote({ order: orderId, note: noteText })
+    await newNote.save()
 
-    const addedNote = order.notes[order.notes.length - 1]
+    // 2) Siparişin notes dizisine GiftNote._id referansı ekle
+    order.notes.push(newNote._id)
+    await order.save()
 
     return res.status(201).json({
       message: 'Not eklendi.',
-      note:    addedNote,
+      note:    newNote,
       order,
     })
   } catch (err) {
@@ -233,6 +258,10 @@ router.post('/:orderId/notes', authMiddleware, async (req, res) => {
 
 // ─────────────────────────────────────────────
 // DELETE /api/orders/:orderId/notes/:noteId — Hediye notu sil
+//
+// İki tablodan aynı anda siler:
+//   1) GiftNote koleksiyonundan belgeyi kalıcı olarak siler
+//   2) Order.notes dizisinden noteId referansını çıkarır
 // ─────────────────────────────────────────────
 router.delete('/:orderId/notes/:noteId', authMiddleware, async (req, res) => {
   try {
@@ -251,12 +280,18 @@ router.delete('/:orderId/notes/:noteId', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'Bu işlem için yetkiniz yok.' })
     }
 
-    const noteExists = order.notes.find((n) => n._id.toString() === noteId)
-    if (!noteExists) {
-      return res.status(404).json({ message: 'Not bulunamadı.' })
+    // Notun bu siparişe ait olduğunu doğrula
+    const noteExistsInOrder = order.notes.some((n) => n.toString() === noteId)
+    if (!noteExistsInOrder) {
+      await GiftNote.findByIdAndDelete(noteId)
+      return res.status(404).json({ message: 'Not bu siparişte bulunamadı.' })
     }
 
-    order.notes = order.notes.filter((n) => n._id.toString() !== noteId)
+    // 1) GiftNote koleksiyonundan kalıcı olarak sil
+    await GiftNote.findByIdAndDelete(noteId)
+
+    // 2) Order.notes dizisinden referansı çıkar
+    order.notes = order.notes.filter((n) => n.toString() !== noteId)
     await order.save()
 
     return res.status(200).json({ message: 'Not silindi.', order })
