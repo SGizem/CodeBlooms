@@ -16,7 +16,7 @@ if (!process.env.MONGO_URI || process.env.MONGO_URI.trim() === '') {
 connectDB()
 
 const app = express()
-app.use(cors())
+app.use(cors({ origin: '*' }))
 app.use(express.json())
 
 // ── 3. ROTALAR ───────────────────────────────────────────────
@@ -38,6 +38,6 @@ app.use((req, res) => {
 
 // ── 6. SUNUCU BAŞLATMA ───────────────────────────────────────
 const PORT = process.env.PORT || 5000
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Sunucu ${PORT} portunda çalışıyor — ${new Date().toLocaleString('tr-TR')}`)
 })
