@@ -3,6 +3,7 @@ const Order    = require('../models/Order')
 const Cart     = require('../models/Cart')
 const Product  = require('../models/Product')
 const GiftNote = require('../models/GiftNote')
+const amqp     = require('amqplib')
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Yardımcı: siparişi items.product + notes (GiftNote) populate ederek getirir
@@ -18,6 +19,7 @@ const populatedOrder = (query) =>
 // ─────────────────────────────────────────────
 const createOrder = async (req, res) => {
   try {
+    console.log('📡 [RADAR] POST /api/orders isteği ulaştı!');
     const { address, recipient, items: bodyItems, giftNote } = req.body || {}
 
     if (!address || !recipient) {
@@ -98,6 +100,19 @@ const createOrder = async (req, res) => {
 
     // 4) Populate ederek dön (frontend tam veriyi bekliyor)
     const populated = await populatedOrder(Order.findById(order._id))
+
+    try {
+      const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://127.0.0.1:5672');
+      const channel = await connection.createChannel();
+      const queue = 'order_processing';
+      await channel.assertQueue(queue, { durable: true });
+      channel.sendToQueue(queue, Buffer.from(JSON.stringify(populated)));
+      console.log('🐰 ŞOV: Sipariş alındı! Fatura işlemi için order_processing kuyruğuna eklendi.');
+      setTimeout(() => connection.close(), 500);
+    } catch (mqErr) {
+      console.error('RabbitMQ Error:', mqErr);
+    }
+
     return res.status(201).json({ order: populated, message: 'Siparişiniz oluşturuldu.' })
   } catch (err) {
     console.error('Sipariş oluşturma hatası:', err)
