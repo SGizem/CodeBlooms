@@ -22,8 +22,9 @@ router.get('/', async (req, res) => {
       filter.name = { $regex: search, $options: 'i' }
     }
 
+    const cacheKey = 'products:' + req.originalUrl;
     // Redis'ten kontrol et
-    const cachedProducts = await redis.get('products')
+    const cachedProducts = await redis.get(cacheKey)
     if (cachedProducts) {
       console.log('🚀 ŞOV: Veri Redis Cache (Önbellek) üzerinden milisaniyeler içinde getirildi!')
       return res.status(200).json(JSON.parse(cachedProducts))
@@ -34,7 +35,7 @@ router.get('/', async (req, res) => {
 
     console.log('🗄️ Veri MongoDB\'den çekildi ve Redis Cache\'e eklendi.')
     // Redis'e kaydet (3600 saniye)
-    await redis.setex('products', 3600, JSON.stringify(responseData))
+    await redis.setex(cacheKey, 3600, JSON.stringify(responseData))
 
     return res.status(200).json(responseData)
   } catch (err) {
@@ -76,6 +77,13 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
       category,
     })
 
+    // 🧹 Cache Invalidation (Önbellek Temizleme)
+    const keys = await redis.keys('products:*')
+    if (keys.length > 0) {
+      await redis.del(...keys)
+      console.log('🧹 Redis Cache Temizlendi: Yeni ürün eklendiği için products:* anahtarları silindi.')
+    }
+
     return res.status(201).json({ product })
   } catch (err) {
     console.error('Ürün ekleme hatası:', err)
@@ -90,6 +98,14 @@ router.delete('/:productId', authMiddleware, adminMiddleware, async (req, res) =
     if (!product) {
       return res.status(404).json({ message: 'Ürün bulunamadı.' })
     }
+
+    // 🧹 Cache Invalidation (Önbellek Temizleme)
+    const keys = await redis.keys('products:*')
+    if (keys.length > 0) {
+      await redis.del(...keys)
+      console.log('🧹 Redis Cache Temizlendi: Ürün silindiği için products:* anahtarları silindi.')
+    }
+
     return res.status(200).json({ message: 'Ürün başarıyla silindi.' })
   } catch (err) {
     console.error('Ürün silme hatası:', err)
