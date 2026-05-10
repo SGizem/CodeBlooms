@@ -1,24 +1,42 @@
 import axios from 'axios'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-const BASE_URL = 'http://192.168.1.118:5000'
-
-// Token'lı istek için axios instance
+// Ortam değişkeni yüklenmediyse fallback olarak senin IP adresini kullanırız
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.162:5000/api'
+console.log("🌐 AKTİF API URL:", BASE_URL)// Token'lı istek için axios instance
 const authAxios = async () => {
   const token = await AsyncStorage.getItem('token')
-  return axios.create({
+  const instance = axios.create({
     baseURL: BASE_URL,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     }
   })
+
+  // Tunnel engellerini aşmak için Interceptor
+  instance.interceptors.request.use((config) => {
+    config.headers['Bypass-Tunnel-Reminder'] = 'true'
+    config.headers['ngrok-skip-browser-warning'] = '69420'
+    config.headers['Accept'] = 'application/json'
+    return config
+  })
+
+  return instance
 }
 
 // Token'sız istek için
 const publicAxios = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' }
+})
+
+// Tunnel engellerini aşmak için Interceptor
+publicAxios.interceptors.request.use((config) => {
+  config.headers['Bypass-Tunnel-Reminder'] = 'true'
+  config.headers['ngrok-skip-browser-warning'] = '69420'
+  config.headers['Accept'] = 'application/json'
+  return config
 })
 
 // ── SEDEFİN GEREKSİNİMLERİ ──
