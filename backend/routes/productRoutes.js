@@ -1,8 +1,8 @@
-const express        = require('express')
-const Product        = require('../models/Product')
+const express = require('express')
+const Product = require('../models/Product')
 const authMiddleware = require('../middleware/authMiddleware')
 const adminMiddleware = require('../middleware/adminMiddleware')
-const Redis          = require('ioredis')
+const Redis = require('ioredis')
 
 const router = express.Router()
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379')
@@ -14,33 +14,28 @@ router.get('/', async (req, res) => {
     const { category, search } = req.query
     const filter = {}
 
-    const isCategoryActive = category && category !== 'Tümü'
-
-    if (isCategoryActive) {
-      filter.category = { $regex: `^${category}$`, $options: 'i' }
+    if (category) {
+      filter.category = category
     }
 
     if (search) {
       filter.name = { $regex: search, $options: 'i' }
     }
 
-    // Redis'ten kontrol et (Sadece filtre yoksa)
-    if (!isCategoryActive && !search) {
-      const cachedProducts = await redis.get('products')
-      if (cachedProducts) {
-        console.log('🚀 ŞOV: Veri Redis Cache (Önbellek) üzerinden milisaniyeler içinde getirildi!')
-        return res.status(200).json(JSON.parse(cachedProducts))
-      }
+    const cacheKey = 'products:' + req.originalUrl;
+    // Redis'ten kontrol et
+    const cachedProducts = await redis.get(cacheKey)
+    if (cachedProducts) {
+      console.log('🚀 ŞOV: Veri Redis Cache (Önbellek) üzerinden milisaniyeler içinde getirildi!')
+      return res.status(200).json(JSON.parse(cachedProducts))
     }
 
     const products = await Product.find(filter).sort({ createdAt: -1 })
     const responseData = { products, total: products.length }
 
-    if (!isCategoryActive && !search) {
-      console.log('🗄️ Veri MongoDB\'den çekildi ve Redis Cache\'e eklendi.')
-      // Redis'e kaydet (3600 saniye)
-      await redis.setex('products', 3600, JSON.stringify(responseData))
-    }
+    console.log('🗄️ Veri MongoDB\'den çekildi ve Redis Cache\'e eklendi.')
+    // Redis'e kaydet (3600 saniye)
+    await redis.setex(cacheKey, 3600, JSON.stringify(responseData))
 
     return res.status(200).json(responseData)
   } catch (err) {
@@ -77,12 +72,17 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
       description,
       price,
       originalPrice: originalPrice ?? null,
-      stock:         stock ?? 0,
+      stock: stock ?? 0,
       imageUrl,
       category,
     })
 
-    await redis.del('products')
+    // 🧹 Cache Invalidation (Önbellek Temizleme)
+    const keys = await redis.keys('products:*')
+    if (keys.length > 0) {
+      await redis.del(...keys)
+      console.log('🧹 Redis Cache Temizlendi: Yeni ürün eklendiği için products:* anahtarları silindi.')
+    }
 
     return res.status(201).json({ product })
   } catch (err) {
@@ -98,9 +98,14 @@ router.delete('/:productId', authMiddleware, adminMiddleware, async (req, res) =
     if (!product) {
       return res.status(404).json({ message: 'Ürün bulunamadı.' })
     }
-    
-    await redis.del('products')
-    
+
+    // 🧹 Cache Invalidation (Önbellek Temizleme)
+    const keys = await redis.keys('products:*')
+    if (keys.length > 0) {
+      await redis.del(...keys)
+      console.log('🧹 Redis Cache Temizlendi: Ürün silindiği için products:* anahtarları silindi.')
+    }
+
     return res.status(200).json({ message: 'Ürün başarıyla silindi.' })
   } catch (err) {
     console.error('Ürün silme hatası:', err)
