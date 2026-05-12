@@ -26,8 +26,8 @@ Kullanıcılar zengin ürün yelpazemizden taze çiçekler ve kişiselleştirile
 
 ## Proje Linkleri
 
-- **REST API Adresi:** 
-- **Web Frontend Adresi:** 
+- **REST API Adresi:** https://codeblooms.onrender.com
+- **Web Frontend Adresi:** https://code-blooms.vercel.app
 
 ---
 

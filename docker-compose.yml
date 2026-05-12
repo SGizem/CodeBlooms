@@ -1,0 +1,34 @@
+version: '3.8'
+services:
+  backend:
+    build: ./backend
+    container_name: codeblooms-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - redis
+      - rabbitmq
+
+  frontend:
+    build: ./codeblooms-mobile
+    container_name: codeblooms-frontend
+    ports:
+      - "8081:8081"
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:alpine
+    container_name: codeblooms-redis
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: codeblooms-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"

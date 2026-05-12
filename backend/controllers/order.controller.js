@@ -2,6 +2,16 @@ const mongoose = require('mongoose')
 const Order    = require('../models/Order')
 const Cart     = require('../models/Cart')
 const Product  = require('../models/Product')
+const GiftNote = require('../models/GiftNote')
+const amqp     = require('amqplib')
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Yardımcı: siparişi items.product + notes (GiftNote) populate ederek getirir
+// ─────────────────────────────────────────────────────────────────────────────
+const populatedOrder = (query) =>
+  query
+    .populate('items.product')
+    .populate('notes')          // notes → GiftNote belgeleri (note, addedAt, order)
 
 // ─────────────────────────────────────────────
 // POST /api/orders
@@ -9,6 +19,7 @@ const Product  = require('../models/Product')
 // ─────────────────────────────────────────────
 const createOrder = async (req, res) => {
   try {
+    console.log('📡 [RADAR] POST /api/orders isteği ulaştı!');
     const { address, recipient, items: bodyItems, giftNote } = req.body || {}
 
     if (!address || !recipient) {
@@ -61,6 +72,7 @@ const createOrder = async (req, res) => {
       total += (product.price || 0) * it.quantity
     }
 
+    // 1) Siparişi oluştur
     const order = await Order.create({
       user:     req.user.id,
       items:    orderItems,
@@ -71,9 +83,37 @@ const createOrder = async (req, res) => {
       status:   'preparing',
     })
 
+    // 2) Checkout'tan hediye notu geldiyse → GiftNote koleksiyonuna kaydet
+    //    ve siparişin notes dizisine referans olarak ekle
+    if (giftNote && giftNote.trim()) {
+      const newNote = new GiftNote({
+        order: order._id,
+        note:  giftNote.trim(),
+      })
+      await newNote.save()
+      order.notes.push(newNote._id)
+      await order.save()
+    }
+
+    // 3) Sepeti temizle
     await Cart.findOneAndUpdate({ user: req.user.id }, { items: [] })
 
-    return res.status(201).json({ order, message: 'Siparişiniz oluşturuldu.' })
+    // 4) Populate ederek dön (frontend tam veriyi bekliyor)
+    const populated = await populatedOrder(Order.findById(order._id))
+
+    try {
+      const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://127.0.0.1:5672');
+      const channel = await connection.createChannel();
+      const queue = 'order_processing';
+      await channel.assertQueue(queue, { durable: true });
+      channel.sendToQueue(queue, Buffer.from(JSON.stringify(populated)));
+      console.log('🐰 ŞOV: Sipariş alındı! Fatura işlemi için order_processing kuyruğuna eklendi.');
+      setTimeout(() => connection.close(), 500);
+    } catch (mqErr) {
+      console.error('RabbitMQ Error:', mqErr);
+    }
+
+    return res.status(201).json({ order: populated, message: 'Siparişiniz oluşturuldu.' })
   } catch (err) {
     console.error('Sipariş oluşturma hatası:', err)
     return res.status(500).json({ message: 'Sipariş oluşturulurken hata oluştu.', error: err.message })
@@ -146,13 +186,36 @@ const updateOrder = async (req, res) => {
 
     if (address   !== undefined) order.address   = address
     if (recipient !== undefined) order.recipient = recipient
-    if (giftNote  !== undefined) order.giftNote  = giftNote
     if (status    !== undefined) {
       const allowedStatuses = ['pending', 'preparing', 'shipped', 'delivered', 'cancelled']
       if (!allowedStatuses.includes(status)) {
         return res.status(400).json({ message: 'Geçersiz sipariş durumu.' })
       }
       order.status = status
+    }
+
+    // ── HEDİYE NOTU GÜNCELLEMESİ (Tüm Koleksiyonlarla Senkronize) ──
+    if (giftNote !== undefined) {
+      order.giftNote = giftNote.trim() // Eski string alanı güncelle
+      
+      if (giftNote.trim()) {
+        // Not doluysa: Varsa güncelle, yoksa yeni oluştur
+        const existingNote = await GiftNote.findOne({ order: orderId })
+        if (existingNote) {
+          existingNote.note = giftNote.trim()
+          await existingNote.save()
+        } else {
+          const newNote = new GiftNote({ order: orderId, note: giftNote.trim() })
+          await newNote.save()
+          if (!order.notes.includes(newNote._id)) {
+            order.notes.push(newNote._id)
+          }
+        }
+      } else {
+        // Not boşsa: Bu siparişe ait tüm GiftNote belgelerini sil ve diziyi temizle
+        await GiftNote.deleteMany({ order: orderId })
+        order.notes = []
+      }
     }
 
     await order.save()
@@ -175,8 +238,12 @@ const getOrders = async (req, res) => {
       return res.status(403).json({ message: 'Bu siparişlere erişim yetkiniz yok.' })
     }
 
+    // .populate('notes') → GiftNote belgelerini tam olarak getirir
+    // .populate('items.product') → ürün detaylarını getirir
+    // NOT: .lean() KULLANILMAZ — virtual 'giftNotes' alanının çalışması için
     const orders = await Order.find({ user: userId })
       .populate('items.product')
+      .populate('notes')
       .sort({ createdAt: -1 })
 
     return res.status(200).json({ orders })
@@ -188,18 +255,24 @@ const getOrders = async (req, res) => {
 
 // ─────────────────────────────────────────────
 // POST /api/orders/:orderId/notes
-// Body: { message }
+// Body: { note } veya { message }
+//
+// İki tabloya aynı anda yazar:
+//   1) GiftNote koleksiyonuna yeni belge oluşturur
+//   2) Order.notes dizisine GiftNote._id referansını ekler
 // ─────────────────────────────────────────────
 const addNote = async (req, res) => {
   try {
     const { orderId } = req.params
-    const { message } = req.body || {}
+    // Frontend 'note' key'i, internal endpoint 'message' key'i gönderebilir
+    const { note, message } = req.body || {}
+    const noteText = (note || message || '').trim()
 
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({ message: 'Geçersiz sipariş kimliği.' })
     }
 
-    if (!message || typeof message !== 'string' || !message.trim()) {
+    if (!noteText) {
       return res.status(400).json({ message: 'Not mesajı boş olamaz.' })
     }
 
@@ -212,12 +285,27 @@ const addNote = async (req, res) => {
       return res.status(403).json({ message: 'Bu işlem için yetkiniz yok.' })
     }
 
-    order.notes.push({ message: message.trim() })
-    await order.save()
+    // 1) Upsert Mantığı (Varsa güncelle, yoksa oluştur)
+    const existingNote = await GiftNote.findOne({ order: orderId })
+    
+    let savedNote
+    if (existingNote) {
+      existingNote.note = noteText
+      savedNote = await existingNote.save()
+    } else {
+      savedNote = new GiftNote({ order: orderId, note: noteText })
+      await savedNote.save()
+      
+      // Siparişin notes dizisine referans ekle
+      order.notes.push(savedNote._id)
+      await order.save()
+    }
 
-    const addedNote = order.notes[order.notes.length - 1]
-
-    return res.status(201).json({ message: 'Not eklendi.', note: addedNote, order })
+    return res.status(201).json({
+      message: 'Not güncellendi/eklendi.',
+      note: savedNote,
+      order,
+    })
   } catch (err) {
     console.error('Not ekleme hatası:', err)
     return res.status(500).json({ message: 'Sunucu hatası.', error: err.message })
@@ -226,6 +314,10 @@ const addNote = async (req, res) => {
 
 // ─────────────────────────────────────────────
 // DELETE /api/orders/:orderId/notes/:noteId
+//
+// İki tablodan aynı anda siler:
+//   1) GiftNote koleksiyonundan belgeyi kalıcı olarak siler
+//   2) Order.notes dizisinden noteId referansını çıkarır
 // ─────────────────────────────────────────────
 const deleteNote = async (req, res) => {
   try {
@@ -247,12 +339,19 @@ const deleteNote = async (req, res) => {
       return res.status(403).json({ message: 'Bu işlem için yetkiniz yok.' })
     }
 
-    const noteExists = order.notes.find((n) => n._id.toString() === noteId)
-    if (!noteExists) {
-      return res.status(404).json({ message: 'Not bulunamadı.' })
+    // Notun bu siparişe ait olduğunu doğrula
+    const noteExistsInOrder = order.notes.some((n) => n.toString() === noteId)
+    if (!noteExistsInOrder) {
+      // GiftNote'ta var ama sipariş referansı yoksa yine de sil (tutarsızlık onarımı)
+      await GiftNote.findByIdAndDelete(noteId)
+      return res.status(404).json({ message: 'Not bu siparişte bulunamadı.' })
     }
 
-    order.notes = order.notes.filter((n) => n._id.toString() !== noteId)
+    // 1) GiftNote koleksiyonundan kalıcı olarak sil
+    await GiftNote.findByIdAndDelete(noteId)
+
+    // 2) Order.notes dizisinden referansı çıkar
+    order.notes = order.notes.filter((n) => n.toString() !== noteId)
     await order.save()
 
     return res.status(200).json({ message: 'Not silindi.', order })
