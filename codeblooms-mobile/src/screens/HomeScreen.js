@@ -126,7 +126,7 @@ export default function HomeScreen({ navigation }) {
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getProducts(selectedCategory, search)
+      const data = await getProducts(selectedCategory === 'Tümü' ? '' : selectedCategory, search)
       setProducts(data || [])
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Ürünler yüklenemedi'
