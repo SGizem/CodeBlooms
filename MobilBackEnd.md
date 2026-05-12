@@ -1,54 +1,34 @@
 # Mobil Backend (REST API Bağlantısı) Görev Dağılımı
 
-**REST API Adresi:** [api.yazmuh.com](https://api.yazmuh.com)
+**REST API Adresi:** Canlı ortamda CodeBlooms sunucu URL'si kullanılacaktır.
 
-Bu dokümanda, mobil uygulamanın REST API ile iletişimini sağlayan backend entegrasyon görevleri listelenmektedir. Her grup üyesi, kendisine atanan API endpoint'lerinin mobil uygulamadan çağrılması ve yönetilmesinden sorumludur.
+Bu dokümanda, mobil uygulamanın veritabanı ve sunucu (backend) ile nasıl haberleştiği ve bu API bağlantılarının nasıl paylaşıldığı anlatılmaktadır.
 
 ---
 
 ## Grup Üyelerinin Mobil Backend Görevleri
 
-1. [Ali Tutar'ın Mobil Backend Görevleri](Ali-Tutar/Ali-Tutar-Mobil-Backend-Gorevleri.md)
-2. [Grup Üyesi 2'nin Mobil Backend Görevleri](Grup-Uyesi-2/Grup-Uyesi-2-Mobil-Backend-Gorevleri.md)
-3. [Grup Üyesi 3'ün Mobil Backend Görevleri](Grup-Uyesi-3/Grup-Uyesi-3-Mobil-Backend-Gorevleri.md)
-4. [Grup Üyesi 4'ün Mobil Backend Görevleri](Grup-Uyesi-4/Grup-Uyesi-4-Mobil-Backend-Gorevleri.md)
-5. [Grup Üyesi 5'in Mobil Backend Görevleri](Grup-Uyesi-5/Grup-Uyesi-5-Mobil-Backend-Gorevleri.md)
-6. [Grup Üyesi 6'nın Mobil Backend Görevleri](Grup-Uyesi-6/Grup-Uyesi-6-Mobil-Backend-Gorevleri.md)
+1. [Sedef Gizem Orulluoğlu'nun Mobil Backend Görevleri](./Sedef-Gizem-Orulluoglu/Sedef-Gizem-Orulluoglu-Mobil-Backend-Gorevleri.md) *(Merkezi api.js kurulumu, Giriş/Kayıt işlemleri ve ürünlerin API'den çekilmesi)*
+2. [Eda Gögebakan'ın Mobil Backend Görevleri](./Eda-Gogebakan/Eda-Gogebakan-Mobil-Backend-Gorevleri.md) *(Hediye notu hatalarının onarımı, Sipariş oluşturma ve Sepet verilerinin backend'e gönderilmesi)*
 
 ---
 
 ## Genel Mobil Backend Prensipleri
 
-### 1. HTTP Client Yapılandırması
-- **Base URL:** `https://api.yazmuh.com/v1`
-- **Timeout:** Request timeout 30 saniye, connect timeout 10 saniye
-- **Headers:** 
-  - `Content-Type: application/json`
-  - `Authorization: Bearer {token}` (gerekli endpoint'lerde)
+Mobil uygulamamızın sunucu ile güvenli ve hatasız haberleşmesi için aşağıdaki standartlar belirlenmiştir:
 
-### 2. Authentication Yönetimi
-- JWT token'ları secure storage'da saklama
-- Token refresh mekanizması implementasyonu
-- Otomatik token yenileme (401 durumunda)
-- Logout durumunda token temizleme
+### 1. Merkezi API Yönetimi
+* Uygulama içindeki tüm internet istekleri (GET, POST vb.) her sayfada ayrı ayrı yazılmak yerine tek bir merkezden (`api.js`) yönetildi.
+* Bu sayede sunucu adresi değiştiğinde veya global bir ayar yapıldığında tek bir dosyadan tüm uygulamayı güncellemek mümkün hale geldi.
 
-### 3. Error Handling
-- Network hataları (timeout, connection error)
-- HTTP status kodlarına göre uygun mesajlar gösterme
-- Retry mekanizması (network hatalarında)
-- Offline durum yönetimi
+### 2. Güvenlik ve Oturum Yönetimi (Auth)
+* Kullanıcı giriş yaptığında sunucudan gelen güvenlik anahtarı (Token), telefonun güvenli hafızasına kaydedilir.
+* Kullanıcının sepete ürün ekleme veya sipariş verme gibi işlemleri yapabilmesi için, arka planda bu anahtar otomatik olarak sunucuya gönderilir ve kimliği doğrulanır.
 
-### 4. Caching Stratejisi
-- GET istekleri için response caching
-- Cache invalidation (PUT/DELETE sonrası)
-- Offline-first yaklaşımı (mümkün olduğunda)
+### 3. Hata Yakalama (Error Handling)
+* İnternet bağlantısının kopması veya sunucudan veri gelmemesi gibi durumlarda uygulamanın çökmesi engellendi.
+* Böyle durumlarda arka planda oluşan hata yakalanıp, kullanıcının ekranına "Bağlantı hatası" gibi anlaşılır uyarılar olarak yansıtıldı.
 
-### 5. Loading States
-- Request başlangıcında loading indicator
-- Başarılı/başarısız durum bildirimleri
-- Optimistic updates (kullanıcı deneyimi için)
-
-### 6. Logging ve Debugging
-- API request/response logging (development modunda)
-- Error logging ve crash reporting
-- Network interceptor kullanımı
+### 4. Veri Senkronizasyonu
+* Kullanıcının mobilde yaptığı işlemlerin (örneğin sepete ürün eklemek veya hediye notu yazmak) veritabanına eksiksiz işlenmesi sağlandı.
+* Özellikle siparişler ve hediye notları gibi birbiriyle bağlantılı verilerde çakışma olmaması için çift yönlü senkronizasyon (Sync) kontrolleri yapıldı.

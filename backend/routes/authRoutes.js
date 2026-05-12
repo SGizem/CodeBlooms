@@ -2,11 +2,13 @@ const express  = require('express')
 const bcrypt    = require('bcryptjs')
 const jwt       = require('jsonwebtoken')
 const User      = require('../models/User')
+const amqp      = require('amqplib')
 
 const router = express.Router()
 
 // POST /api/users/register
 router.post('/register', async (req, res) => {
+  console.log('📡 [RADAR] POST /api/users/register isteği backend\'e ulaştı!');
   try {
     const { firstName, lastName, email, password } = req.body
 
@@ -37,6 +39,24 @@ router.post('/register', async (req, res) => {
       password: hashedPassword,
     })
 
+    // RabbitMQ Mesaj Gönderimi
+    try {
+      const connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://localhost:5672')
+      const channel = await connection.createChannel()
+      await channel.assertQueue('welcome_emails')
+      
+      channel.sendToQueue('welcome_emails', Buffer.from(JSON.stringify({ email: user.email, message: 'Hoşgeldin' })))
+      
+      console.log('🐰 ŞOV: Yeni kayıt alındı! Hoşgeldin emaili RabbitMQ kuyruğuna (welcome_emails) başarıyla eklendi.')
+
+      setTimeout(() => {
+        channel.close()
+        connection.close()
+      }, 500)
+    } catch (rabbitErr) {
+      console.error('RabbitMQ hatası:', rabbitErr)
+    }
+
     // JWT token
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role, firstName: user.firstName },
@@ -55,7 +75,7 @@ router.post('/register', async (req, res) => {
       },
     })
   } catch (err) {
-    console.error('Register hatası:', err)
+    console.error('HATA OLUŞTU:', err.message);
     return res.status(500).json({ message: 'Sunucu hatası. Lütfen tekrar deneyin.' })
   }
 })

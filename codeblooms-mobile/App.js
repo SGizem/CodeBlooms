@@ -29,6 +29,9 @@ import HomeScreen from './src/screens/HomeScreen';
 import ProductDetailScreen from './src/screens/ProductDetailScreen';
 import AdminProductsScreen from './src/screens/AdminProductsScreen';
 import MyOrdersScreen from './src/screens/MyOrdersScreen';
+import CartScreen from './src/screens/CartScreen';
+import CheckoutScreen from './src/screens/CheckoutScreen';
+import PaymentScreen from './src/screens/PaymentScreen';
 
 // ---------------------------------------------------------------------------
 // Stack Navigator
@@ -106,11 +109,22 @@ export default function App() {
             options={{ title: 'Siparişlerim' }}
           />
 
-          {/*
-           * 📌 EDA'NIN EKRANLARI BURAYA EKLENECEKTİR
-           * Örnek:
-           * <Stack.Screen name="Cart" component={CartScreen} options={{ title: 'Sepetim' }} />
-           */}
+          {/* ── Eda'nın Ekranları ─────────────────────────────────────────── */}
+          <Stack.Screen
+            name="Cart"
+            component={CartScreen}
+            options={{ title: 'Sepetim 🛒' }}
+          />
+          <Stack.Screen
+            name="Checkout"
+            component={CheckoutScreen}
+            options={{ title: 'Sipariş & Ödeme' }}
+          />
+          <Stack.Screen
+            name="Payment"
+            component={PaymentScreen}
+            options={{ title: 'Ödeme Bilgileri 💳' }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
