@@ -1,6 +1,9 @@
 const mongoose   = require('mongoose')
 const Cart       = require('../models/Cart')
 const Product    = require('../models/Product')
+const Redis      = require('ioredis')
+
+const redis = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379')
 
 // ─────────────────────────────────────────────
 // POST /api/cart/add
@@ -51,6 +54,7 @@ const addToCart = async (req, res) => {
     }
 
     await cart.save()
+    await redis.del(`cart:${req.user.id}`)
     return res.status(201).json({ cart })
   } catch (err) {
     return res.status(500).json({ message: 'Sepete ekleme sırasında hata oluştu', error: err.message })
@@ -76,6 +80,7 @@ const removeFromCart = async (req, res) => {
 
     cart.items = cart.items.filter((i) => i._id.toString() !== itemId)
     await cart.save()
+    await redis.del(`cart:${req.user.id}`)
 
     return res.status(200).json({ cart, message: 'Ürün sepetten çıkarıldı' })
   } catch (err) {
@@ -111,6 +116,7 @@ const updateCartItem = async (req, res) => {
 
     item.quantity = qty
     await cart.save()
+    await redis.del(`cart:${req.user.id}`)
 
     return res.status(200).json({ cart })
   } catch (err) {
@@ -123,10 +129,21 @@ const updateCartItem = async (req, res) => {
 // ─────────────────────────────────────────────
 const getCart = async (req, res) => {
   try {
+    console.log('📡 [RADAR] GET /api/cart isteği ulaştı!');
+    const cacheKey = `cart:${req.user.id}`;
+    const cachedCart = await redis.get(cacheKey);
+
+    if (cachedCart) {
+      console.log('🚀 ŞOV: Sepet verisi Redis Cache üzerinden getirildi!');
+      return res.status(200).json(JSON.parse(cachedCart));
+    }
+
     const cart = await Cart.findOne({ user: req.user.id }).populate('items.product')
 
     if (!cart) {
-      return res.status(200).json({ cart: { items: [], total: 0 } })
+      const emptyCart = { cart: { items: [], total: 0 } };
+      await redis.setex(cacheKey, 3600, JSON.stringify(emptyCart));
+      return res.status(200).json(emptyCart)
     }
 
     const total = (cart.items || []).reduce(
@@ -134,7 +151,10 @@ const getCart = async (req, res) => {
       0
     )
 
-    return res.status(200).json({ cart: { items: cart.items, total } })
+    const cartData = { cart: { items: cart.items, total } };
+    await redis.setex(cacheKey, 3600, JSON.stringify(cartData));
+
+    return res.status(200).json(cartData)
   } catch (err) {
     return res.status(500).json({ message: 'Sepet alınırken hata oluştu', error: err.message })
   }
