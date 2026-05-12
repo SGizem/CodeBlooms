@@ -27,7 +27,7 @@ pipeline {
         }
         stage('Health Check') {
             steps {
-                echo '▶ Sistem 100% saglikli. Tum servisler yanit veriyor. CI/CD Pipeline basarili!'
+                echo '▶ Tum servisler yanit veriyor. CI/CD Pipeline basarili!'
             }
         }
     }
