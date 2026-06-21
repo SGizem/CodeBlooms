@@ -20,14 +20,17 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Adres ve alıcı bilgileri zorunludur.' })
     }
 
-    // Ürün listesini: body'den gelen items YOKSA sepetten al
-    const cart = await Cart.findOne({ user: req.user.id })
-    if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
-      return res.status(400).json({ message: 'Sepetiniz boş.' })
+    // body'den items geldiyse direkt kullan, gelmezse MongoDB cart'tan al
+    let sourceItems
+    if (Array.isArray(bodyItems) && bodyItems.length > 0) {
+      sourceItems = bodyItems
+    } else {
+      const cart = await Cart.findOne({ user: req.user.id })
+      if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
+        return res.status(400).json({ message: 'Sepetiniz boş.' })
+      }
+      sourceItems = cart.items
     }
-
-    const sourceItems =
-      Array.isArray(bodyItems) && bodyItems.length > 0 ? bodyItems : cart.items
 
     // Normalize: her item için productId ve quantity çıkar
     const normalized = sourceItems.map((i) => ({
